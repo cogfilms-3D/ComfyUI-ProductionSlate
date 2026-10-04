@@ -1,0 +1,17 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Backup / temporary files
+*.bak
+*.BAK
+*.tmp
+*.temp
+
+# Operating-system files
+Thumbs.db
+.DS_Store
+
+# Editor / IDE files
+.vscode/
+.idea/

@@ -2,6 +2,8 @@
 
 **Spend less time finding your film. Spend more time making it.**
 
+![Production Slate V4.4 for ComfyUI](images/production-slate-v4.4-header.png)
+
 Production Slate is a production-output node for ComfyUI designed for AI filmmaking.
 
 It automatically organises generated images and videos into a clear production structure using:

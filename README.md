@@ -318,7 +318,11 @@ See [LICENSE](LICENSE).
 
 ## Trailer and tutorials
 
-Production Slate launch video and tutorials will be added here.
+Watch the Production Slate V4.4 launch trailer on YouTube:
+
+https://youtube.com/shorts/XhnRhxTbsY8?feature=share
+
+More tutorials and development updates will follow.
 
 ---
 

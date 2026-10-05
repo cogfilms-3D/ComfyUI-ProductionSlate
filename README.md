@@ -271,7 +271,7 @@ AI_Films
 
 Production Slate V4.4 retains compatibility support for workflows created with the earlier Production Slate V4 IMAGE 004-C and VIDEO 004-C nodes.
 
-Production Slate has been developed and production-tested with current ComfyUI V0.37.x builds.
+Production Slate has been developed and production-tested with ComfyUI V0.37.x through V0.38.2.
 
 The node does not require VideoHelperSuite for its folder browser.
 

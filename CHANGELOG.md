@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Compatibility
 
+- Production-tested with ComfyUI V0.37.x through V0.38.2.
 - Retains compatibility support for earlier Production Slate V4 IMAGE 004-C and VIDEO 004-C workflows.
 - Browse backend is independent of VideoHelperSuite and other external node packs.
 

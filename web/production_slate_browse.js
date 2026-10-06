@@ -21,6 +21,333 @@ import { api } from "../../scripts/api.js";
 
 const productionSlateMigratedNodeIds = new Set();
 
+// ------------------------------------------------------------
+// ProductionSlate V4.4 monitor state persistence
+//
+// Monitor state is kept outside individual node instances so a
+// running render can survive switching between open workflows.
+// Each workflow/node pair receives its own state object.
+// ------------------------------------------------------------
+
+const productionSlateMonitorStates = new Map();
+
+function getProductionSlateWorkflowKey(node) {
+    const workflowPath =
+        app.extensionManager?.workflow?.activeWorkflow?.path;
+
+    if (workflowPath) {
+        return (
+            `workflow:${String(workflowPath)}` +
+            `::node:${String(node.id)}`
+        );
+    }
+
+    const graphId =
+        node.graph?.id ??
+        app.graph?.id ??
+        "root";
+
+    return (
+        `graph:${String(graphId)}` +
+        `::node:${String(node.id)}`
+    );
+}
+
+function getProductionSlateMonitorState(node) {
+    const key = getProductionSlateWorkflowKey(node);
+
+    let state = productionSlateMonitorStates.get(key);
+
+    if (!state) {
+        state = {
+            key,
+            nodeId: String(node.id),
+            promptId: null,
+            startTime: null,
+            elapsed: 0,
+            running: false,
+            status: "READY",
+            progressValue: null,
+            progressMax: null,
+            timer: null,
+            render: null,
+        };
+
+        productionSlateMonitorStates.set(key, state);
+    }
+
+    return state;
+}
+
+function getProductionSlatePromptId(detail) {
+    if (
+        detail &&
+        typeof detail === "object" &&
+        detail.prompt_id !== undefined &&
+        detail.prompt_id !== null
+    ) {
+        return String(detail.prompt_id);
+    }
+
+    return null;
+}
+
+function getProductionSlateNodeId(detail) {
+    if (
+        detail &&
+        typeof detail === "object" &&
+        detail.node !== undefined &&
+        detail.node !== null
+    ) {
+        return String(detail.node);
+    }
+
+    if (
+        detail !== null &&
+        detail !== undefined &&
+        typeof detail !== "object"
+    ) {
+        return String(detail);
+    }
+
+    return null;
+}
+
+function productionSlatePromptMatches(state, detail) {
+    const promptId = getProductionSlatePromptId(detail);
+
+    if (!promptId) {
+        return true;
+    }
+
+    if (!state.promptId) {
+        state.promptId = promptId;
+        return true;
+    }
+
+    return state.promptId === promptId;
+}
+
+function productionSlateElapsedMilliseconds(state) {
+    if (
+        state.running &&
+        state.startTime !== null
+    ) {
+        return Math.max(
+            0,
+            Date.now() - state.startTime
+        );
+    }
+
+    return state.elapsed || 0;
+}
+
+function renderProductionSlateMonitorState(state) {
+    if (typeof state.render === "function") {
+        state.render();
+    }
+}
+
+function startProductionSlateMonitorState(state) {
+    if (state.timer !== null) {
+        clearInterval(state.timer);
+    }
+
+    state.promptId = null;
+    state.startTime = Date.now();
+    state.elapsed = 0;
+    state.running = true;
+    state.status = "PROCESSING";
+    state.progressValue = null;
+    state.progressMax = null;
+
+    state.timer = setInterval(() => {
+        renderProductionSlateMonitorState(state);
+    }, 1000);
+
+    renderProductionSlateMonitorState(state);
+}
+
+function stopProductionSlateMonitorState(
+    state,
+    terminalStatus
+) {
+    state.elapsed =
+        productionSlateElapsedMilliseconds(state);
+
+    state.running = false;
+    state.startTime = null;
+    state.status = terminalStatus;
+    state.progressValue = null;
+    state.progressMax = null;
+
+    if (state.timer !== null) {
+        clearInterval(state.timer);
+        state.timer = null;
+    }
+
+    renderProductionSlateMonitorState(state);
+}
+
+// Keep running monitor states synchronised even when their workflow
+// is not currently visible. ComfyUI's websocket events continue while
+// another workflow tab is active.
+api.addEventListener("execution_start", (event) => {
+    const promptId =
+        getProductionSlatePromptId(event.detail);
+
+    if (!promptId) {
+        return;
+    }
+
+    const assignPromptId = () => {
+        for (const state of productionSlateMonitorStates.values()) {
+            if (state.running && !state.promptId) {
+                state.promptId = promptId;
+            }
+        }
+    };
+
+    assignPromptId();
+
+    queueMicrotask(assignPromptId);
+});
+
+api.addEventListener("progress", (event) => {
+    const detail = event.detail;
+
+    if (!detail) {
+        return;
+    }
+
+    const value = Number(detail.value);
+    const max = Number(detail.max);
+
+    for (const state of productionSlateMonitorStates.values()) {
+        if (!state.running) {
+            continue;
+        }
+
+        if (!productionSlatePromptMatches(state, detail)) {
+            continue;
+        }
+
+        state.status = "GENERATING";
+
+        if (
+            Number.isFinite(value) &&
+            Number.isFinite(max) &&
+            max > 0
+        ) {
+            state.progressValue = value;
+            state.progressMax = max;
+        } else {
+            state.progressValue = null;
+            state.progressMax = null;
+        }
+
+        renderProductionSlateMonitorState(state);
+    }
+});
+
+api.addEventListener("executing", (event) => {
+    const detail = event.detail;
+    const executingNodeId =
+        getProductionSlateNodeId(detail);
+
+    if (executingNodeId === null) {
+        return;
+    }
+
+    for (const state of productionSlateMonitorStates.values()) {
+        if (!state.running) {
+            continue;
+        }
+
+        if (state.nodeId !== executingNodeId) {
+            continue;
+        }
+
+        if (!productionSlatePromptMatches(state, detail)) {
+            continue;
+        }
+
+        state.status = "SAVING";
+        state.progressValue = null;
+        state.progressMax = null;
+
+        renderProductionSlateMonitorState(state);
+    }
+});
+
+api.addEventListener("executed", (event) => {
+    const detail = event.detail;
+    const executedNodeId =
+        getProductionSlateNodeId(detail);
+
+    if (executedNodeId === null) {
+        return;
+    }
+
+    for (const state of productionSlateMonitorStates.values()) {
+        if (!state.running) {
+            continue;
+        }
+
+        if (state.nodeId !== executedNodeId) {
+            continue;
+        }
+
+        if (!productionSlatePromptMatches(state, detail)) {
+            continue;
+        }
+
+        stopProductionSlateMonitorState(
+            state,
+            "COMPLETE"
+        );
+    }
+});
+
+api.addEventListener("execution_interrupted", (event) => {
+    const detail = event.detail;
+
+    for (const state of productionSlateMonitorStates.values()) {
+        if (!state.running) {
+            continue;
+        }
+
+        if (!productionSlatePromptMatches(state, detail)) {
+            continue;
+        }
+
+        stopProductionSlateMonitorState(
+            state,
+            "INTERRUPTED"
+        );
+    }
+});
+
+api.addEventListener("execution_error", (event) => {
+    const detail = event.detail;
+
+    for (const state of productionSlateMonitorStates.values()) {
+        if (!state.running) {
+            continue;
+        }
+
+        if (!productionSlatePromptMatches(state, detail)) {
+            continue;
+        }
+
+        stopProductionSlateMonitorState(
+            state,
+            "ERROR"
+        );
+    }
+});
+
+
 app.registerExtension({
     name: "ProductionSlate.Browse",
 
@@ -1322,10 +1649,13 @@ app.registerExtension({
 // ProductionSlate V4.4 monitor state and timer handling
 // READY / PROCESSING / GENERATING / SAVING / COMPLETE
 // with INTERRUPTED and ERROR terminal states.
+//
+// State is retained at module level so switching workflows
+// does not reset an active ProductionSlate monitor.
 // --------------------------------------------------------
 
-        let monitorStartTime = null;
-        let monitorTimer = null;
+        const monitorState =
+            getProductionSlateMonitorState(node);
 
         function hideMonitorProgress() {
             monitorProgress.style.display = "none";
@@ -1380,161 +1710,36 @@ app.registerExtension({
             );
         }
 
-        function updateMonitorTime() {
-            if (monitorStartTime === null) {
-                return;
-            }
+        function renderMonitorState() {
+            monitorStatus.textContent =
+                monitorState.status || "READY";
 
             monitorTime.textContent =
                 formatElapsed(
-                    performance.now() - monitorStartTime
+                    productionSlateElapsedMilliseconds(
+                        monitorState
+                    )
                 );
-        }
-
-        function startMonitorTimer() {
-            if (monitorTimer !== null) {
-                clearInterval(monitorTimer);
-            }
-
-            monitorStartTime = performance.now();
-
-            hideMonitorProgress();
-            monitorStatus.textContent = "PROCESSING";
-            monitorTime.textContent = "00:00";
-
-            monitorTimer = setInterval(
-                updateMonitorTime,
-                1000
-            );
-        }
-
-        function stopMonitorTimer() {
-            if (monitorStartTime !== null) {
-                updateMonitorTime();
-            }
-
-            if (monitorTimer !== null) {
-                clearInterval(monitorTimer);
-                monitorTimer = null;
-            }
-
-            hideMonitorProgress();
-            monitorStatus.textContent = "COMPLETE";
-        }
-
-        function stopMonitorWithState(state) {
-            if (monitorStartTime !== null) {
-                updateMonitorTime();
-            }
-
-            if (monitorTimer !== null) {
-                clearInterval(monitorTimer);
-                monitorTimer = null;
-            }
-
-            hideMonitorProgress();
-            monitorStatus.textContent = state;
-        }
-
-        // --------------------------------------------------------
-        // Native ComfyUI generation progress
-        // --------------------------------------------------------
-
-        const productionSlateProgressHandler = (event) => {
-            const detail = event.detail;
-
-            if (!detail) {
-                return;
-            }
-
-            if (monitorStartTime === null) {
-                return;
-            }
-
-            const value = Number(detail.value);
-            const max = Number(detail.max);
 
             if (
-                Number.isFinite(value) &&
-                Number.isFinite(max) &&
-                max > 0
+                monitorState.progressValue !== null &&
+                monitorState.progressMax !== null &&
+                monitorState.progressMax > 0
             ) {
-                monitorStatus.textContent = "GENERATING";
-                showMonitorProgress(value, max);
+                showMonitorProgress(
+                    monitorState.progressValue,
+                    monitorState.progressMax
+                );
             } else {
-                monitorStatus.textContent = "GENERATING";
                 hideMonitorProgress();
             }
-        };
+        }
 
-        api.addEventListener(
-            "progress",
-            productionSlateProgressHandler
-        );
-
-        // --------------------------------------------------------
-        // Interrupted / error states
-        // --------------------------------------------------------
-
-        const productionSlateInterruptedHandler = () => {
-            if (monitorStartTime === null) {
-                return;
-            }
-
-            stopMonitorWithState("INTERRUPTED");
-        };
-
-        api.addEventListener(
-            "execution_interrupted",
-            productionSlateInterruptedHandler
-        );
-
-        const productionSlateErrorHandler = () => {
-            if (monitorStartTime === null) {
-                return;
-            }
-
-            stopMonitorWithState("ERROR");
-        };
-
-        api.addEventListener(
-            "execution_error",
-            productionSlateErrorHandler
-        );
-
-        // --------------------------------------------------------
-        // ProductionSlate saving state
-        // --------------------------------------------------------
-
-        const productionSlateExecutingHandler = (event) => {
-            if (monitorStartTime === null) {
-                return;
-            }
-
-            const executingNodeId = event.detail;
-
-            if (
-                executingNodeId === null ||
-                executingNodeId === undefined
-            ) {
-                return;
-            }
-
-            if (
-                String(executingNodeId) !==
-                String(node.id)
-            ) {
-                return;
-            }
-
-            hideMonitorProgress();
-            monitorStatus.textContent = "SAVING";
-        };
-
-        api.addEventListener(
-            "executing",
-            productionSlateExecutingHandler
-        );
+        // The most recently created instance is the visible view for
+        // this workflow/node pair. A running module-level timer will
+        // therefore update the restored node after a workflow switch.
+        monitorState.render = renderMonitorState;
+        renderMonitorState();
 
         const originalMonitorOnExecutionStart =
             node.onExecutionStart;
@@ -1544,7 +1749,9 @@ app.registerExtension({
                 originalMonitorOnExecutionStart.call(this);
             }
 
-            startMonitorTimer();
+            startProductionSlateMonitorState(
+                monitorState
+            );
         };
 
         const originalMonitorOnExecuted =
@@ -1558,7 +1765,12 @@ app.registerExtension({
                 );
             }
 
-            stopMonitorTimer();
+            if (monitorState.running) {
+                stopProductionSlateMonitorState(
+                    monitorState,
+                    "COMPLETE"
+                );
+            }
         };
 
         const productionNameIndex =
@@ -1647,7 +1859,7 @@ app.registerExtension({
 
         if (isUnified) {
             node.title =
-                "🎬 Production Slate V4.3";
+                "🎬 Production Slate V4.4";
         }
 
         node.color = "#352447";

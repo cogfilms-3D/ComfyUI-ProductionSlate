@@ -273,6 +273,8 @@ Production Slate V4.4 retains compatibility support for workflows created with t
 
 Production Slate has been developed and production-tested with ComfyUI V0.37.x through V0.38.2.
 
+Production Slate was developed and tested using ComfyUI's **Nodes 2** interface and is intended to work with Nodes 2.
+
 The node does not require VideoHelperSuite for its folder browser.
 
 ---

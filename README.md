@@ -14,6 +14,16 @@ Production Slate is designed to sit at the end of an image or video workflow, so
 
 ---
 
+## Getting Started — Video Tutorial
+
+**Production Slate — Organising Your AI Film for ComfyUI**
+
+A short practical walkthrough showing how to replace the basic save node, organise a production by Scene and Shot, use automatic Take numbering, follow render progress, and find the resulting image and video files.
+
+▶️ **Watch on YouTube:** https://youtu.be/8nfZ-741PJ4
+
+---
+
 ## Why Production Slate?
 
 AI filmmaking quickly produces large numbers of images, videos, variations and takes.

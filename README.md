@@ -308,6 +308,19 @@ The experience of using Production Slate throughout a complete production has al
 
 ---
 
+## Roadmap — V4.5 (Under Consideration)
+
+We're exploring ways to extend Production Slate's output management to additional types of production assets, while keeping the current **V4.4 IMAGE/VIDEO features stable**. These are **proposals, not confirmed features or a release schedule**.
+
+- **[Optional LATENT saving — Issue #2](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/issues/2):** Save compatible latents **alongside the associated image or video**, with matching scene, shot and take filenames. No separate Latents directory. Investigate conventional image latents and specialised audio/video latents before deciding format support.
+- **[Generator-independent audio — Issue #3](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/issues/3):** Explore saving ComfyUI audio as **FLAC, MP3 or WAV**, organised using Production Slate's existing production structure, for standalone cues or audio associated with visual takes.
+- **Workflow recovery:** Preserve reloadable workflow metadata where technically supported, with companion workflow files as a fallback where embedding is not reliable.
+- **Optional companion files:** Explore saving **user-supplied JSON metadata and PDF scores** alongside relevant audio assets, without depending on any particular music model or generator.
+
+Technical feasibility, format compatibility, file naming, migration and UI simplicity will be assessed before any implementation is committed. Please use the linked Issues to share requirements and feedback.
+
+---
+
 ## Version
 
 **Production Slate V4.4**

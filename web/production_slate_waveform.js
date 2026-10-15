@@ -14,7 +14,7 @@ function timecode(seconds) {
     return (hours ? hours + ":" : "") + mm + ":" + ss;
 }
 
-function drawWaveform(canvas, track, expanded) {
+function drawWaveform(canvas, track, expanded, playheadSeconds = 0) {
     const targetWidth = Math.max(240, Math.floor(canvas.parentElement?.clientWidth || 356));
     const height = expanded ? 130 : 72;
     const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
@@ -90,6 +90,18 @@ function drawWaveform(canvas, track, expanded) {
         context.stroke();
     }
 
+    // The movable playhead uses exactly the same full-duration time scale.
+    if (Number.isFinite(playheadSeconds) && track.duration > 0) {
+        const fraction = Math.min(1, Math.max(0, playheadSeconds / track.duration));
+        const cursorX = left + fraction * lineWidth + 0.5;
+        context.strokeStyle = "#ffcf78";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(cursorX, top);
+        context.lineTo(cursorX, bottom);
+        context.stroke();
+    }
+
     context.fillStyle = "#a8b9c8";
     context.font = "10px Arial, sans-serif";
     context.textBaseline = "bottom";
@@ -121,9 +133,9 @@ app.registerExtension({
         panel.style.display = "none";
         panel.style.width = "100%";
         panel.style.boxSizing = "border-box";
-        panel.style.padding = "8px";
-        panel.style.background = "#1b1824";
-        panel.style.border = "1px solid #4e415d";
+        panel.style.padding = "4px";
+        panel.style.background = "transparent";
+        panel.style.border = "none";
         panel.style.borderRadius = "8px";
         panel.style.color = "#e7e4ee";
         panel.style.fontFamily = "Arial, sans-serif";
@@ -141,11 +153,30 @@ app.registerExtension({
 
         let drawAll = () => {};
         let lastData = null;
+        let player = null;
+        let rafId = 0;
 
-        function render(data) {
+        function stopPlayback() {
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = 0;
+            }
+            if (player) {
+                player.pause();
+                player.removeAttribute("src");
+                player.load();
+                player = null;
+            }
+        }
+
+        function render(data, playbackInfo) {
             lastData = data;
             waveforms.replaceChildren();
-            const tracks = Array.isArray(data?.tracks) ? data.tracks : [];
+            const allTracks = Array.isArray(data?.tracks) ? data.tracks : [];
+            // Match ComfyUI Batch Count behaviour: show the latest completed
+            // take, not an ever-growing gallery. ComfyUI Assets holds history.
+            const tracks = allTracks.length ? [allTracks[allTracks.length - 1]] : [];
+            stopPlayback();
 
             if (!tracks.length) {
                 panel.style.display = "none";
@@ -153,54 +184,158 @@ app.registerExtension({
                 return;
             }
             panel.style.display = "block";
-            const isBatch = tracks.length > 1;
+            const descriptor = Array.isArray(playbackInfo) ? playbackInfo[0] : playbackInfo;
+            const canPlay = Boolean(descriptor?.filename);
             const painters = [];
-            tracks.forEach((track, index) => {
+            tracks.forEach((track) => {
                 const row = document.createElement("div");
                 row.style.background = "#151e2b";
                 row.style.borderRadius = "6px";
-                row.style.padding = "6px 7px";
-                row.style.marginBottom = "6px";
-                row.style.cursor = "pointer";
-                row.title = "Click to expand or collapse this waveform";
+                row.style.padding = "4px";
+                row.style.marginBottom = "0";
 
-                // A single waveform is self-explanatory: no headings, filenames,
-                // or duplicate duration. In batches, retain only a compact take
-                // identifier (matching the filename's take number where possible).
-                if (isBatch) {
-                    const label = document.createElement("div");
-                    label.style.display = "flex";
-                    label.style.justifyContent = "space-between";
-                    label.style.gap = "8px";
-                    label.style.fontSize = "11px";
-                    label.style.marginBottom = "4px";
-
-                    const take = document.createElement("span");
-                    const match = String(track.name || "").match(/_(\d+)\.[^.]+$/);
-                    take.textContent = "Take " + (match ? match[1] : String(index + 1).padStart(3, "0"));
-
-                    const duration = document.createElement("span");
-                    duration.style.opacity = "0.8";
-                    duration.textContent = timecode(track.duration);
-
-                    label.append(take, duration);
-                    row.appendChild(label);
-                }
+                const strip = document.createElement("div");
+                strip.style.display = "flex";
+                strip.style.alignItems = "center";
+                strip.style.gap = "5px";
+                strip.style.width = "100%";
 
                 const canvas = document.createElement("canvas");
                 canvas.style.display = "block";
+                canvas.style.flex = "1 1 auto";
+                canvas.style.minWidth = "0";
                 canvas.style.borderRadius = "4px";
-                row.appendChild(canvas);
+                strip.appendChild(canvas);
+                row.appendChild(strip);
                 waveforms.appendChild(row);
 
-                let expanded = tracks.length === 1;
-                const paint = () => drawWaveform(canvas, track, expanded);
+                let playhead = 0;
+                const paint = () => drawWaveform(canvas, track, true, playhead);
                 painters.push(paint);
-                row.addEventListener("click", () => {
-                    expanded = !expanded;
-                    paint();
-                    refreshLayout(node);
-                });
+
+                if (canPlay) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = "▶";
+                    button.title = "Play from cursor";
+                    button.setAttribute("aria-label", "Play audio");
+                    button.style.flex = "0 0 26px";
+                    button.style.width = "26px";
+                    button.style.height = "30px";
+                    button.style.padding = "0";
+                    button.style.border = "1px solid #45576c";
+                    button.style.borderRadius = "5px";
+                    button.style.background = "#25374a";
+                    button.style.color = "#ecf3f8";
+                    button.style.cursor = "pointer";
+                    strip.insertBefore(button, canvas);
+
+                    // Use ComfyUI's standard /view temp route, never a raw
+                    // local filesystem path.
+                    const params = new URLSearchParams({
+                        filename: descriptor.filename,
+                        subfolder: descriptor.subfolder ?? "",
+                        type: descriptor.type ?? "temp",
+                    });
+                    const audio = document.createElement("audio");
+                    audio.preload = "metadata";
+                    audio.src = api.apiURL(`/view?${params.toString()}`);
+                    player = audio;
+
+                    const updateButton = () => {
+                        const playing = !audio.paused && !audio.ended;
+                        button.textContent = playing ? "Ⅱ" : "▶";
+                        button.title = playing ? "Pause audio" : "Play from cursor";
+                        button.setAttribute("aria-label", playing ? "Pause audio" : "Play audio");
+                    };
+
+                    const updateCursor = () => {
+                        const time = Number(audio.currentTime);
+                        if (Number.isFinite(time)) playhead = time;
+                        paint();
+                    };
+
+                    const tick = () => {
+                        rafId = 0;
+                        if (player !== audio) return;
+                        updateCursor();
+                        if (!audio.paused && !audio.ended) {
+                            rafId = requestAnimationFrame(tick);
+                        }
+                    };
+                    const beginAnimation = () => {
+                        updateButton();
+                        if (!rafId) rafId = requestAnimationFrame(tick);
+                    };
+                    audio.addEventListener("play", beginAnimation);
+                    audio.addEventListener("pause", () => {
+                        updateButton();
+                        updateCursor();
+                    });
+                    audio.addEventListener("ended", () => {
+                        updateButton();
+                        updateCursor();
+                    });
+                    audio.addEventListener("seeked", updateCursor);
+                    audio.addEventListener("timeupdate", updateCursor);
+                    audio.addEventListener("error", () => {
+                        button.textContent = "!";
+                        button.title = "Preview audio unavailable; saved audio is unaffected";
+                    });
+
+                    button.addEventListener("click", () => {
+                        if (audio.paused || audio.ended) {
+                            if (audio.ended) audio.currentTime = 0;
+                            audio.play().catch(() => {
+                                button.title = "Browser could not start audio playback";
+                            });
+                        } else {
+                            audio.pause();
+                        }
+                    });
+
+                    let dragging = false;
+                    const seek = (event) => {
+                        const bounds = canvas.getBoundingClientRect();
+                        const width = canvas.width / Math.min(2, window.devicePixelRatio || 1);
+                        const left = 12;
+                        const usable = Math.max(1, width - 24);
+                        const coordinate = (event.clientX - bounds.left) * (width / Math.max(1, bounds.width));
+                        const fraction = Math.min(1, Math.max(0, (coordinate - left) / usable));
+                        const seconds = fraction * (Number(track.duration) || 0);
+                        playhead = seconds;
+                        canvas.title = "Seek: " + timecode(seconds);
+                        // currentTime also works when paused, without starting play.
+                        if (audio.readyState >= 1 && Number.isFinite(seconds)) {
+                            try { audio.currentTime = seconds; } catch { /* loading */ }
+                        }
+                        paint();
+                    };
+
+                    canvas.style.cursor = "crosshair";
+                    canvas.style.touchAction = "none";
+                    canvas.title = "Click or drag to seek; press ▶ to play";
+                    canvas.addEventListener("pointerdown", (event) => {
+                        if (event.button !== 0) return;
+                        dragging = true;
+                        canvas.setPointerCapture(event.pointerId);
+                        seek(event);
+                        event.preventDefault();
+                    });
+                    canvas.addEventListener("pointermove", (event) => {
+                        if (dragging) seek(event);
+                    });
+                    const endDrag = (event) => {
+                        if (!dragging) return;
+                        dragging = false;
+                        seek(event);
+                        if (canvas.hasPointerCapture(event.pointerId)) {
+                            canvas.releasePointerCapture(event.pointerId);
+                        }
+                    };
+                    canvas.addEventListener("pointerup", endDrag);
+                    canvas.addEventListener("pointercancel", () => { dragging = false; });
+                }
             });
 
             drawAll = () => painters.forEach(paint => paint());
@@ -217,7 +352,8 @@ app.registerExtension({
             const payload = detail.output?.production_slate_audio_waveform;
             // ComfyUI combines UI values into arrays before websocket delivery.
             const data = Array.isArray(payload) ? payload[0] : payload;
-            render(data);
+            const preview = detail.output?.production_slate_audio_playback;
+            render(data, preview);
         };
         api.addEventListener("executed", executed);
 
@@ -230,6 +366,7 @@ app.registerExtension({
         node.onRemoved = function(...args) {
             api.removeEventListener("executed", executed);
             resizeObserver.disconnect();
+            stopPlayback();
             if (priorOnRemoved) priorOnRemoved.apply(this, args);
         };
     },

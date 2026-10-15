@@ -20,7 +20,8 @@ function drawWaveform(canvas, track, expanded, playheadSeconds = 0) {
         canvas.getBoundingClientRect().width ||
         (canvas.parentElement?.clientWidth || 356) - 36
     ));
-    const height = expanded ? 130 : 72;
+    // The time labels live in DOM below canvas to avoid stretched glyphs.
+    const height = expanded ? 110 : 62;
     const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
 
     canvas.style.height = height + "px";
@@ -36,7 +37,7 @@ function drawWaveform(canvas, track, expanded, playheadSeconds = 0) {
     const left = 12;
     const right = w - 12;
     const top = 8;
-    const bottom = h - 21;
+    const bottom = h - 8;
     const mid = (top + bottom) / 2;
     const maxAmplitudeHeight = (bottom - top) / 2 - 2;
     const lineWidth = right - left;
@@ -105,16 +106,6 @@ function drawWaveform(canvas, track, expanded, playheadSeconds = 0) {
         context.stroke();
     }
 
-    context.fillStyle = "#a8b9c8";
-    context.font = "10px Arial, sans-serif";
-    context.textBaseline = "bottom";
-    context.textAlign = "left";
-    const duration = Number(track.duration) || 0;
-    context.fillText("0:00", left, h - 3);
-    context.textAlign = "center";
-    context.fillText(timecode(duration / 2), left + lineWidth / 2, h - 3);
-    context.textAlign = "right";
-    context.fillText(timecode(duration), right, h - 3);
 }
 
 function refreshLayout(node) {
@@ -192,10 +183,14 @@ app.registerExtension({
             const painters = [];
             tracks.forEach((track) => {
                 const row = document.createElement("div");
-                row.style.background = "#151e2b";
+                // Steel-blue panel contrasts with Production Slate's purple.
+                // The waveform canvas remains darker for amplitude legibility.
+                row.style.background = "#23475a";
+                row.style.border = "1px solid #52788b";
                 row.style.borderRadius = "6px";
-                row.style.padding = "4px";
+                row.style.padding = "5px";
                 row.style.marginBottom = "0";
+                row.style.boxSizing = "border-box";
 
                 const strip = document.createElement("div");
                 strip.style.display = "flex";
@@ -203,13 +198,50 @@ app.registerExtension({
                 strip.style.gap = "5px";
                 strip.style.width = "100%";
 
+                // Keep the time axis as normal DOM text. ComfyUI may resize
+                // canvas bitmap and its CSS box by different ratios on zoom,
+                // which distorted the old canvas-drawn numbers.
+                const timeline = document.createElement("div");
+                timeline.style.flex = "1 1 0%";
+                timeline.style.width = "0px";
+                timeline.style.minWidth = "0";
+                timeline.style.background = "#101b28";
+                timeline.style.borderRadius = "4px";
+                timeline.style.overflow = "hidden";
+
                 const canvas = document.createElement("canvas");
                 canvas.style.display = "block";
-                canvas.style.flex = "1 1 0%";
-                canvas.style.width = "0px";
+                canvas.style.width = "100%";
                 canvas.style.minWidth = "0";
-                canvas.style.borderRadius = "4px";
-                strip.appendChild(canvas);
+                canvas.style.borderRadius = "4px 4px 0 0";
+                timeline.appendChild(canvas);
+
+                const labels = document.createElement("div");
+                labels.style.display = "grid";
+                labels.style.gridTemplateColumns = "1fr 1fr 1fr";
+                labels.style.boxSizing = "border-box";
+                labels.style.padding = "0 12px 2px";
+                labels.style.height = "20px";
+                labels.style.alignItems = "center";
+                labels.style.color = "#bfcedb";
+                labels.style.fontFamily = "Arial, sans-serif";
+                labels.style.fontSize = "11px";
+                labels.style.fontWeight = "400";
+                labels.style.fontVariantNumeric = "tabular-nums";
+                labels.style.whiteSpace = "nowrap";
+                labels.style.lineHeight = "16px";
+                for (const [value, align] of [
+                    ["0:00", "left"],
+                    [timecode((Number(track.duration) || 0) / 2), "center"],
+                    [timecode(track.duration), "right"],
+                ]) {
+                    const tick = document.createElement("span");
+                    tick.textContent = value;
+                    tick.style.textAlign = align;
+                    labels.appendChild(tick);
+                }
+                timeline.appendChild(labels);
+                strip.appendChild(timeline);
                 row.appendChild(strip);
                 waveforms.appendChild(row);
 
@@ -220,7 +252,27 @@ app.registerExtension({
                 if (canPlay) {
                     const button = document.createElement("button");
                     button.type = "button";
-                    button.textContent = "▶";
+                    // Vector icons avoid dependence on a platform font's
+                    // mismatched play triangle and Roman numeral II glyph.
+                    const ns = "http://www.w3.org/2000/svg";
+                    const buttonIcon = document.createElementNS(ns, "svg");
+                    buttonIcon.setAttribute("viewBox", "0 0 24 24");
+                    buttonIcon.setAttribute("width", "16");
+                    buttonIcon.setAttribute("height", "16");
+                    buttonIcon.setAttribute("aria-hidden", "true");
+                    const drawButtonIcon = (playing) => {
+                        const shape = document.createElementNS(ns, "path");
+                        shape.setAttribute("fill", "currentColor");
+                        shape.setAttribute(
+                            "d",
+                            playing
+                                ? "M6 5 H10 V19 H6 Z M14 5 H18 V19 H14 Z"
+                                : "M7 4.5 L19 12 L7 19.5 Z"
+                        );
+                        buttonIcon.replaceChildren(shape);
+                    };
+                    drawButtonIcon(false);
+                    button.appendChild(buttonIcon);
                     button.title = "Play from cursor";
                     button.setAttribute("aria-label", "Play audio");
                     button.style.flex = "0 0 26px";
@@ -232,7 +284,10 @@ app.registerExtension({
                     button.style.background = "#25374a";
                     button.style.color = "#ecf3f8";
                     button.style.cursor = "pointer";
-                    strip.insertBefore(button, canvas);
+                    button.style.display = "flex";
+                    button.style.alignItems = "center";
+                    button.style.justifyContent = "center";
+                    strip.insertBefore(button, timeline);
 
                     // Use ComfyUI's standard /view temp route, never a raw
                     // local filesystem path.
@@ -255,7 +310,7 @@ app.registerExtension({
 
                     const updateButton = () => {
                         const playing = !audio.paused && !audio.ended;
-                        button.textContent = playing ? "Ⅱ" : "▶";
+                        drawButtonIcon(playing);
                         button.title = playing ? "Pause audio" : "Play from cursor";
                         button.setAttribute("aria-label", playing ? "Pause audio" : "Play audio");
                     };

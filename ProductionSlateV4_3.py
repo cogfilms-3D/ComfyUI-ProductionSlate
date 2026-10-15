@@ -29,7 +29,7 @@ import json
 import folder_paths
 
 from comfy_api.latest import io, ui, Types
-from .production_slate_audio import save_production_audio, create_audio_playback_preview
+from .production_slate_audio import save_production_audio, create_audio_playback_preview, next_audio_take
 from .production_slate_waveform import audio_waveform_preview
 
 
@@ -303,6 +303,15 @@ class ProductionSlateV4_3(io.ComfyNode):
 
             take = highest_take + 1
 
+            # IMAGE + AUDIO must reserve one common take number.
+            # Previous AUDIO-only saves may be ahead of IMAGE numbering.
+            # Leave IMAGE-only behaviour unchanged.
+            if audio is not None:
+                take = max(
+                    take,
+                    next_audio_take(os.path.join(scene_path, "Audio"), prefix)
+                )
+
             # ----------------------------------------------------
             # Filename
             # ----------------------------------------------------
@@ -492,6 +501,15 @@ class ProductionSlateV4_3(io.ComfyNode):
                     pass
 
             take = highest_take + 1
+
+            # VIDEO + AUDIO reserves a common take across both folders,
+            # even when AUDIO-only renders have already occupied numbers.
+            # Leave VIDEO-only behaviour unchanged.
+            if audio is not None:
+                take = max(
+                    take,
+                    next_audio_take(os.path.join(scene_path, "Audio"), prefix)
+                )
 
             # ----------------------------------------------------
             # VIDEO filename
@@ -722,6 +740,14 @@ class ProductionSlateV4_3(io.ComfyNode):
                     pass
 
             take = highest_take + 1
+
+            # VIDEO + IMAGE + AUDIO keeps VIDEO authoritative while
+            # reserving a take number also free for AUDIO.
+            if audio is not None:
+                take = max(
+                    take,
+                    next_audio_take(os.path.join(scene_path, "Audio"), prefix)
+                )
 
             # ----------------------------------------------------
             # Paired filenames

@@ -205,7 +205,7 @@ class ProductionSlateV4_3(io.ComfyNode):
             print(f"🎬 Production Slate — AUDIO save: {len(paths)} take(s), first: {paths[0]}")
             return io.NodeOutput(
                 None, None, audio, paths[0],
-                ui={"production_slate_audio_waveform": audio_waveform_preview(audio, paths)},
+                ui={"production_slate_audio_waveform": [audio_waveform_preview(audio, paths)]},
             )
 
         if image is not None and video is None:
@@ -386,7 +386,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                     "images": [],
                     "animated": (True,),
                     "production_slate_image": preview.values,
-                    "production_slate_audio_waveform": audio_waveform_preview(audio, audio_paths),
+                    "production_slate_audio_waveform": [audio_waveform_preview(audio, audio_paths)] if audio is not None else [],
                 }
             )
 
@@ -593,7 +593,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                             io.FolderType.temp
                         )
                     ]).as_dict(),
-                    "production_slate_audio_waveform": audio_waveform_preview(audio, audio_paths),
+                    "production_slate_audio_waveform": [audio_waveform_preview(audio, audio_paths)] if audio is not None else [],
                 }
             )
         # --------------------------------------------------------
@@ -871,7 +871,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                             io.FolderType.temp
                         )
                     ]).as_dict(),
-                    "production_slate_audio_waveform": audio_waveform_preview(audio, audio_paths),
+                    "production_slate_audio_waveform": [audio_waveform_preview(audio, audio_paths)] if audio is not None else [],
                 }
             )
 

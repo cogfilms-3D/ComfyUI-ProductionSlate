@@ -506,7 +506,7 @@ app.registerExtension({
         }
 
         if (isUnified) {
-            node.title = "🎬 Production Slate V4.4";
+            node.title = "🎬 Production Slate V4.5";
         }
 
         node.color = "#352447";
@@ -1823,7 +1823,7 @@ app.registerExtension({
         }
 
         const nodeTypeLabel =
-            isUnified ? "V4.4" : (isVideo ? "Video" : "Image");
+            isUnified ? "V4.5" : (isVideo ? "Video" : "Image");
 
         console.log(
             `[ProductionSlate] Browse panel attached to ${nodeTypeLabel}.`
@@ -1859,7 +1859,7 @@ app.registerExtension({
 
         if (isUnified) {
             node.title =
-                "🎬 Production Slate V4.4";
+                "🎬 Production Slate V4.5";
         }
 
         node.color = "#352447";

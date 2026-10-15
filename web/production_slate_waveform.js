@@ -128,14 +128,6 @@ app.registerExtension({
         panel.style.color = "#e7e4ee";
         panel.style.fontFamily = "Arial, sans-serif";
 
-        const heading = document.createElement("div");
-        heading.style.fontSize = "13px";
-        heading.style.fontWeight = "bold";
-        heading.style.marginBottom = "8px";
-        heading.style.display = "flex";
-        heading.style.justifyContent = "space-between";
-        panel.appendChild(heading);
-
         const waveforms = document.createElement("div");
         panel.appendChild(waveforms);
 
@@ -161,19 +153,7 @@ app.registerExtension({
                 return;
             }
             panel.style.display = "block";
-            heading.replaceChildren();
-
-            const title = document.createElement("span");
-            title.textContent = "AUDIO WAVEFORM" + (tracks.length > 1 ? " · " + tracks.length + " TAKES" : "");
-            heading.appendChild(title);
-
-            const legend = document.createElement("span");
-            legend.style.fontSize = "10px";
-            legend.style.fontWeight = "normal";
-            legend.style.opacity = "0.75";
-            legend.textContent = "Peak · RMS";
-            heading.appendChild(legend);
-
+            const isBatch = tracks.length > 1;
             const painters = [];
             tracks.forEach((track, index) => {
                 const row = document.createElement("div");
@@ -184,27 +164,28 @@ app.registerExtension({
                 row.style.cursor = "pointer";
                 row.title = "Click to expand or collapse this waveform";
 
-                const label = document.createElement("div");
-                label.style.display = "flex";
-                label.style.justifyContent = "space-between";
-                label.style.gap = "8px";
-                label.style.fontSize = "11px";
-                label.style.marginBottom = "4px";
+                // A single waveform is self-explanatory: no headings, filenames,
+                // or duplicate duration. In batches, retain only a compact take
+                // identifier (matching the filename's take number where possible).
+                if (isBatch) {
+                    const label = document.createElement("div");
+                    label.style.display = "flex";
+                    label.style.justifyContent = "space-between";
+                    label.style.gap = "8px";
+                    label.style.fontSize = "11px";
+                    label.style.marginBottom = "4px";
 
-                const name = document.createElement("span");
-                name.textContent = track.name || "Take " + (index + 1);
-                name.style.overflow = "hidden";
-                name.style.textOverflow = "ellipsis";
-                name.style.whiteSpace = "nowrap";
-                name.title = track.name || "";
+                    const take = document.createElement("span");
+                    const match = String(track.name || "").match(/_(\d+)\.[^.]+$/);
+                    take.textContent = "Take " + (match ? match[1] : String(index + 1).padStart(3, "0"));
 
-                const duration = document.createElement("span");
-                duration.style.whiteSpace = "nowrap";
-                duration.style.opacity = "0.8";
-                duration.textContent = timecode(track.duration);
+                    const duration = document.createElement("span");
+                    duration.style.opacity = "0.8";
+                    duration.textContent = timecode(track.duration);
 
-                label.append(name, duration);
-                row.appendChild(label);
+                    label.append(take, duration);
+                    row.appendChild(label);
+                }
 
                 const canvas = document.createElement("canvas");
                 canvas.style.display = "block";

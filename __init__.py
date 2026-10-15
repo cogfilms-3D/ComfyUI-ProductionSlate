@@ -26,7 +26,7 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ProductionSlateV4":
-        "🎬 Production Slate V4.4",
+        "🎬 Production Slate V4.5",
 
     "ProductionSlateV4_Build004C_Image":
         "🎬 Production Slate V4 — IMAGE 004-C",

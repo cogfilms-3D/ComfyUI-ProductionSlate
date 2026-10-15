@@ -42,7 +42,7 @@ function drawWaveform(canvas, track, expanded) {
     const maxAmplitudeHeight = (bottom - top) / 2 - 2;
     const lineWidth = right - left;
 
-    context.fillStyle = "#101b28";
+    context.fillStyle = "#000000";
     context.fillRect(0, 0, w, h);
 
     context.strokeStyle = "rgba(174,196,219,0.17)";
@@ -206,7 +206,7 @@ app.registerExtension({
                 const row = document.createElement("div");
                 // One plain, dark preview surface, consistent with the
                 // existing image/video boxes: no extra blue frame or border.
-                row.style.background = "#101b28";
+                row.style.background = "#000000";
                 row.style.border = "none";
                 row.style.borderRadius = "6px";
                 row.style.padding = "4px";
@@ -226,7 +226,7 @@ app.registerExtension({
                 timeline.style.flex = "1 1 0%";
                 timeline.style.width = "0px";
                 timeline.style.minWidth = "0";
-                timeline.style.background = "#101b28";
+                timeline.style.background = "#000000";
                 timeline.style.borderRadius = "4px";
                 timeline.style.overflow = "hidden";
                 timeline.style.position = "relative";

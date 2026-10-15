@@ -129,8 +129,8 @@ class ProductionSlateV4_3(io.ComfyNode):
             outputs=[
                 io.Video.Output("video"),
                 io.Image.Output("image"),
-                io.String.Output("save_path"),
                 io.Audio.Output("audio"),
+                io.String.Output("save_path"),
             ],
         )
     @classmethod
@@ -182,7 +182,7 @@ class ProductionSlateV4_3(io.ComfyNode):
 
         # Stage 1: AUDIO-only is an unchanged pass-through; no audio saving yet.
         if audio is not None and video is None and image is None:
-            return io.NodeOutput(None, None, save_path, audio)
+            return io.NodeOutput(None, None, audio, save_path)
 
         if image is not None and video is None:
 
@@ -346,8 +346,8 @@ class ProductionSlateV4_3(io.ComfyNode):
             return io.NodeOutput(
                 video,
                 image,
-                save_path,
                 audio,
+                save_path,
                 ui={
                     "images": [],
                     "animated": (True,),
@@ -538,8 +538,8 @@ class ProductionSlateV4_3(io.ComfyNode):
             return io.NodeOutput(
                 video,
                 image,
-                save_path,
                 audio,
+                save_path,
                 ui=ui.PreviewVideo([
                     ui.SavedResult(
                         preview_filename,
@@ -803,8 +803,8 @@ class ProductionSlateV4_3(io.ComfyNode):
             return io.NodeOutput(
                 video,
                 image,
-                save_path,
                 audio,
+                save_path,
                 ui=ui.PreviewVideo([
                     ui.SavedResult(
                         preview_filename,
@@ -817,8 +817,8 @@ class ProductionSlateV4_3(io.ComfyNode):
         return io.NodeOutput(
             video,
             image,
-            save_path,
             audio,
+            save_path,
         )
 
     # ------------------------------------------------------------

@@ -31,6 +31,7 @@ import folder_paths
 from comfy_api.latest import io, ui, Types
 from .production_slate_audio import save_production_audio, create_audio_playback_preview, next_audio_take
 from .production_slate_waveform import audio_waveform_preview
+from .production_slate_latent import prepare_latent, next_latent_take, save_prepared_latent
 
 
 class ProductionSlateV4_3(io.ComfyNode):
@@ -67,6 +68,12 @@ class ProductionSlateV4_3(io.ComfyNode):
                     "audio",
                     optional=True,
                     tooltip="Optional audio input; passed through without modification in Stage 1."
+                ),
+
+                io.Latent.Input(
+                    "latent",
+                    optional=True,
+                    tooltip="Optional original LATENT payload, saved unmodified alongside primary media."
                 ),
 
                 # ------------------------------------------------
@@ -126,6 +133,17 @@ class ProductionSlateV4_3(io.ComfyNode):
                     default="flac",
                     tooltip="Audio save format: FLAC lossless, WAV PCM, or MP3 320 kbps."
                 ),
+                io.Combo.Input(
+                    "latent_format",
+                    options=[
+                        "Auto Detect",
+                        "ComfyUI Standard (.latent)",
+                        "AV Nested (.avlatent)",
+                        "H3 Motion Context (.safetensors)",
+                    ],
+                    default="Auto Detect",
+                    tooltip="Auto identifies nested data. Choose H3 explicitly for compatibility with H3 Motion Context Load."
+                ),
             ],
 
             hidden=[
@@ -159,6 +177,7 @@ class ProductionSlateV4_3(io.ComfyNode):
         video=None,
         image=None,
         audio=None,
+        latent=None,
         output_root="",
         production_name="Working Title",
         production_code="WT",
@@ -167,12 +186,23 @@ class ProductionSlateV4_3(io.ComfyNode):
         suffix="",
         description="",
         audio_format="flac",
+        latent_format="Auto Detect",
     ):
 
-        if video is None and image is None and audio is None:
+        if video is None and image is None and audio is None and latent is None:
             raise ValueError(
-                "Production Slate V4.5 requires a VIDEO, IMAGE or AUDIO input."
+                "Production Slate V4.5 requires a VIDEO, IMAGE, AUDIO or LATENT input."
             )
+
+        # Validate LATENT, including auxiliary fields, before writing media.
+        prepared_latent = (
+            prepare_latent(
+                latent, latent_format,
+                prompt=getattr(cls.hidden, "prompt", None),
+                extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+            )
+            if latent is not None else None
+        )
 
 # --------------------------------------------------------
 # IMAGE-only production save
@@ -190,18 +220,71 @@ class ProductionSlateV4_3(io.ComfyNode):
 
         save_path = ""
 
+        # LATENT-only: no new folder; route video-shaped latents to Video,
+        # image-shaped latents to Images, with the next unoccupied take.
+        if prepared_latent is not None and video is None and image is None and audio is None:
+            root = output_root.strip()
+            production = cls._sanitize(production_name) or "Working Title"
+            code = cls._sanitize(production_code) or "WT"
+            variation = cls._sanitize(suffix).upper()
+            scene_id = f"SC{scene:03d}"
+            shot_id = f"SH{shot:03d}{variation}"
+            date_stamp = datetime.now().strftime("%y%m%d")
+            prefix = f"{code}_{scene_id}_{shot_id}_{date_stamp}_"
+            asset_dir = os.path.join(root, production, scene_id, prepared_latent.media_hint)
+            os.makedirs(asset_dir, exist_ok=True)
+            highest = 0
+            for entry in os.listdir(asset_dir):
+                stem, ext = os.path.splitext(entry)
+                if ext.lower() not in {
+                    ".latent", ".avlatent", ".safetensors", ".png",
+                    ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v",
+                } or not stem.startswith(prefix):
+                    continue
+                tail = stem[len(prefix):]
+                if tail.isdigit():
+                    highest = max(highest, int(tail))
+            take = highest + 1
+            path = os.path.join(
+                asset_dir, f"{prefix}{take:03d}{prepared_latent.extension}"
+            )
+            save_prepared_latent(prepared_latent, path)
+            print(f"🎬 Production Slate — LATENT-only save: {path}")
+            return io.NodeOutput(None, None, None, path)
+
         # AUDIO-only: save a numbered production take and pass AUDIO unchanged.
         if audio is not None and video is None and image is None:
             output_root = output_root.strip()
             production_name = cls._sanitize(production_name) or "Working Title"
             production_code = cls._sanitize(production_code) or "WT"
             suffix = cls._sanitize(suffix).upper()
+            audio_take_args = {}
+            if prepared_latent is not None:
+                stamp = datetime.now().strftime("%y%m%d")
+                scene_id = f"SC{scene:03d}"
+                shot_id = f"SH{shot:03d}{suffix}"
+                prefix = f"{production_code}_{scene_id}_{shot_id}_{stamp}_"
+                audio_dir = os.path.join(output_root, production_name, scene_id, "Audio")
+                audio_take_args = {
+                    "first_take": max(
+                        next_audio_take(audio_dir, prefix),
+                        next_latent_take(audio_dir, prefix),
+                    ),
+                    "date_stamp": stamp,
+                }
             paths = save_production_audio(
                 audio, output_root, production_name, production_code,
                 scene, shot, suffix, audio_format,
                 prompt=getattr(cls.hidden, "prompt", None),
                 extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+                **audio_take_args,
             )
+            if prepared_latent is not None:
+                take = audio_take_args["first_take"]
+                latent_path = os.path.join(
+                    audio_dir, f"{prefix}{take:03d}{prepared_latent.extension}"
+                )
+                save_prepared_latent(prepared_latent, latent_path)
             print(f"🎬 Production Slate — AUDIO save: {len(paths)} take(s), first: {paths[0]}")
             return io.NodeOutput(
                 None, None, audio, paths[0],
@@ -302,6 +385,8 @@ class ProductionSlateV4_3(io.ComfyNode):
                     pass
 
             take = highest_take + 1
+            if prepared_latent is not None:
+                take = max(take, next_latent_take(image_path, prefix))
 
             # IMAGE + AUDIO must reserve one common take number.
             # Previous AUDIO-only saves may be ahead of IMAGE numbering.
@@ -364,6 +449,11 @@ class ProductionSlateV4_3(io.ComfyNode):
             )
 
             save_path = png_path
+            if prepared_latent is not None:
+                latent_path = os.path.join(
+                    image_path, filename + prepared_latent.extension
+                )
+                save_prepared_latent(prepared_latent, latent_path)
 
             audio_paths = []
             if audio is not None:
@@ -501,6 +591,8 @@ class ProductionSlateV4_3(io.ComfyNode):
                     pass
 
             take = highest_take + 1
+            if prepared_latent is not None:
+                take = max(take, next_latent_take(video_path, prefix))
 
             # VIDEO + AUDIO reserves a common take across both folders,
             # even when AUDIO-only renders have already occupied numbers.
@@ -559,6 +651,11 @@ class ProductionSlateV4_3(io.ComfyNode):
             )
 
             save_path = mp4_path
+            if prepared_latent is not None:
+                latent_path = os.path.join(
+                    video_path, filename + prepared_latent.extension
+                )
+                save_prepared_latent(prepared_latent, latent_path)
 
             audio_paths = []
             if audio is not None:
@@ -740,6 +837,8 @@ class ProductionSlateV4_3(io.ComfyNode):
                     pass
 
             take = highest_take + 1
+            if prepared_latent is not None:
+                take = max(take, next_latent_take(video_path, prefix))
 
             # VIDEO + IMAGE + AUDIO keeps VIDEO authoritative while
             # reserving a take number also free for AUDIO.
@@ -842,6 +941,11 @@ class ProductionSlateV4_3(io.ComfyNode):
 
              # VIDEO is the primary asset for paired saves.
             save_path = mp4_path
+            if prepared_latent is not None:
+                latent_path = os.path.join(
+                    video_path, video_filename + prepared_latent.extension
+                )
+                save_prepared_latent(prepared_latent, latent_path)
 
             audio_paths = []
             if audio is not None:

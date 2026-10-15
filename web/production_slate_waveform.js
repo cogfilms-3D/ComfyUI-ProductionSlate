@@ -327,7 +327,7 @@ app.registerExtension({
 
                     canvas.style.cursor = "crosshair";
                     canvas.style.touchAction = "none";
-                    canvas.title = "Click or drag to seek; press ▶ to play";
+                    canvas.title = "Click or drag to seek and play";
                     canvas.addEventListener("pointerdown", (event) => {
                         if (event.button !== 0) return;
                         dragging = true;
@@ -344,6 +344,13 @@ app.registerExtension({
                         seek(event);
                         if (canvas.hasPointerCapture(event.pointerId)) {
                             canvas.releasePointerCapture(event.pointerId);
+                        }
+                        // A click seeks and plays immediately; releasing a
+                        // scrub gesture also starts playback from its endpoint.
+                        if (audio.paused) {
+                            audio.play().catch(() => {
+                                button.title = "Browser could not start audio playback";
+                            });
                         }
                     };
                     canvas.addEventListener("pointerup", endDrag);

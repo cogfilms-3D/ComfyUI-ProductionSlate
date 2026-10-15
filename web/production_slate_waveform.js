@@ -14,7 +14,7 @@ function timecode(seconds) {
     return (hours ? hours + ":" : "") + mm + ":" + ss;
 }
 
-function drawWaveform(canvas, track, expanded, playheadSeconds = 0) {
+function drawWaveform(canvas, track, expanded) {
     // Canvas shares a flex row with Play, so use its displayed width.
     const targetWidth = Math.max(120, Math.round(
         canvas.getBoundingClientRect().width ||
@@ -91,18 +91,6 @@ function drawWaveform(canvas, track, expanded, playheadSeconds = 0) {
             context.moveTo(x, mid - amplitude);
             context.lineTo(x, mid + amplitude);
         }
-        context.stroke();
-    }
-
-    // The movable playhead uses exactly the same full-duration time scale.
-    if (Number.isFinite(playheadSeconds) && track.duration > 0) {
-        const fraction = Math.min(1, Math.max(0, playheadSeconds / track.duration));
-        const cursorX = left + fraction * lineWidth + 0.5;
-        context.strokeStyle = "#ffcf78";
-        context.lineWidth = 1.5;
-        context.beginPath();
-        context.moveTo(cursorX, top);
-        context.lineTo(cursorX, bottom);
         context.stroke();
     }
 
@@ -238,6 +226,7 @@ app.registerExtension({
                 timeline.style.background = "#101b28";
                 timeline.style.borderRadius = "4px";
                 timeline.style.overflow = "hidden";
+                timeline.style.position = "relative";
 
                 const canvas = document.createElement("canvas");
                 canvas.style.display = "block";
@@ -245,6 +234,20 @@ app.registerExtension({
                 canvas.style.minWidth = "0";
                 canvas.style.borderRadius = "4px 4px 0 0";
                 timeline.appendChild(canvas);
+
+                // The amber playhead is its own lightweight DOM overlay.
+                // Playback updates its position without resizing or redrawing
+                // the audio canvas (which caused a subtle horizontal jump).
+                const cursor = document.createElement("div");
+                cursor.style.position = "absolute";
+                cursor.style.top = "8px";
+                cursor.style.height = "94px"; // 110px canvas, 8px inset top/bottom
+                cursor.style.left = "12px";
+                cursor.style.width = "1.5px";
+                cursor.style.background = "#ffcf78";
+                cursor.style.pointerEvents = "none";
+                cursor.style.zIndex = "1";
+                timeline.appendChild(cursor);
 
                 const labels = document.createElement("div");
                 labels.style.display = "grid";
@@ -276,7 +279,19 @@ app.registerExtension({
                 waveforms.appendChild(row);
 
                 let playhead = 0;
-                const paint = () => drawWaveform(canvas, track, true, playhead);
+                const movePlayhead = () => {
+                    const width = canvas.getBoundingClientRect().width;
+                    if (width <= 0) return;
+                    const duration = Number(track.duration) || 0;
+                    const fraction = duration > 0
+                        ? Math.min(1, Math.max(0, playhead / duration))
+                        : 0;
+                    cursor.style.left = (12 + fraction * Math.max(0, width - 24)) + "px";
+                };
+                const paint = () => {
+                    drawWaveform(canvas, track, true);
+                    movePlayhead();
+                };
                 painters.push(paint);
 
                 if (canPlay) {
@@ -348,7 +363,7 @@ app.registerExtension({
                     const updateCursor = () => {
                         const time = Number(audio.currentTime);
                         if (Number.isFinite(time)) playhead = time;
-                        paint();
+                        movePlayhead();
                     };
 
                     const tick = () => {
@@ -407,7 +422,7 @@ app.registerExtension({
                         } else {
                             pendingSeek = seconds;
                         }
-                        paint();
+                        movePlayhead();
                     };
 
                     canvas.style.cursor = "crosshair";

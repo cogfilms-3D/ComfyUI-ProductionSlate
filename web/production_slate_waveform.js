@@ -235,19 +235,29 @@ app.registerExtension({
                 canvas.style.borderRadius = "4px 4px 0 0";
                 timeline.appendChild(canvas);
 
-                // The amber playhead is its own lightweight DOM overlay.
-                // Playback updates its position without resizing or redrawing
-                // the audio canvas (which caused a subtle horizontal jump).
+                // Keep the amber playhead in a CSS-relative track matching
+                // the waveform's 12px inset. The earlier version used
+                // getBoundingClientRect() (screen pixels) as a CSS left offset
+                // (local pixels), so ComfyUI zoom could send it off-screen.
+                const cursorTrack = document.createElement("div");
+                cursorTrack.style.position = "absolute";
+                cursorTrack.style.left = "12px";
+                cursorTrack.style.right = "12px";
+                cursorTrack.style.top = "8px";
+                cursorTrack.style.height = "94px"; // 110px canvas, 8px top/bottom
+                cursorTrack.style.pointerEvents = "none";
+                cursorTrack.style.zIndex = "1";
+
                 const cursor = document.createElement("div");
                 cursor.style.position = "absolute";
-                cursor.style.top = "8px";
-                cursor.style.height = "94px"; // 110px canvas, 8px inset top/bottom
-                cursor.style.left = "12px";
+                cursor.style.top = "0";
+                cursor.style.bottom = "0";
+                cursor.style.left = "0%";
                 cursor.style.width = "1.5px";
                 cursor.style.background = "#ffcf78";
                 cursor.style.pointerEvents = "none";
-                cursor.style.zIndex = "1";
-                timeline.appendChild(cursor);
+                cursorTrack.appendChild(cursor);
+                timeline.appendChild(cursorTrack);
 
                 const labels = document.createElement("div");
                 labels.style.display = "grid";
@@ -280,13 +290,13 @@ app.registerExtension({
 
                 let playhead = 0;
                 const movePlayhead = () => {
-                    const width = canvas.getBoundingClientRect().width;
-                    if (width <= 0) return;
                     const duration = Number(track.duration) || 0;
                     const fraction = duration > 0
                         ? Math.min(1, Math.max(0, playhead / duration))
                         : 0;
-                    cursor.style.left = (12 + fraction * Math.max(0, width - 24)) + "px";
+                    // Percentages are relative to cursorTrack's CSS width,
+                    // independent of browser DPI, ComfyUI zoom or node resizing.
+                    cursor.style.left = (fraction * 100) + "%";
                 };
                 const paint = () => {
                     drawWaveform(canvas, track, true);
@@ -360,7 +370,11 @@ app.registerExtension({
                         button.setAttribute("aria-label", playing ? "Pause audio" : "Play audio");
                     };
 
+                    let dragging = false;
                     const updateCursor = () => {
+                        // While dragging, late media timeupdate events must not
+                        // compete with the position selected by the pointer.
+                        if (dragging) return;
                         const time = Number(audio.currentTime);
                         if (Number.isFinite(time)) playhead = time;
                         movePlayhead();
@@ -405,7 +419,6 @@ app.registerExtension({
                         }
                     });
 
-                    let dragging = false;
                     const seek = (event) => {
                         const bounds = canvas.getBoundingClientRect();
                         const width = Math.max(1, bounds.width);

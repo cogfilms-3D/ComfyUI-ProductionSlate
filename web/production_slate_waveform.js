@@ -233,7 +233,10 @@ app.registerExtension({
         const executed = (event) => {
             const detail = event?.detail;
             if (!detail || String(detail.node) !== String(node.id)) return;
-            render(detail.output?.production_slate_audio_waveform);
+            const payload = detail.output?.production_slate_audio_waveform;
+            // ComfyUI combines UI values into arrays before websocket delivery.
+            const data = Array.isArray(payload) ? payload[0] : payload;
+            render(data);
         };
         api.addEventListener("executed", executed);
 

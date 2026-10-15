@@ -185,6 +185,89 @@ app.registerExtension({
         let lastData = null;
         let player = null;
         let rafId = 0;
+        let videoPreviewExpected = false;
+        let videoPortal = null;
+        let observedNodeRoot = null;
+        let placementQueued = false;
+        let videoObserver = null;
+
+        // Vue ComfyUI renders the native video below NodeWidgets, as a
+        // separate NodeContent component. Rearranging node.widgets therefore
+        // cannot alter VIDEO + AUDIO order. Keep Vue's video player intact,
+        // and place only our waveform after it, inside its content container.
+        function locateVueNode() {
+            return document.querySelector(`[data-node-id="${node.id}"]`);
+        }
+
+        function widgetRow(root) {
+            return root?.querySelector(
+                '[data-widget-name="production_slate_waveform"]'
+            );
+        }
+
+        function restoreWaveformWidget() {
+            if (waveforms.parentElement !== panel) {
+                panel.appendChild(waveforms);
+            }
+            const row = widgetRow(locateVueNode());
+            if (row) row.style.display = "";
+            if (videoPortal) {
+                videoPortal.remove();
+                videoPortal = null;
+            }
+            panel.style.display = lastData?.tracks?.length ? "block" : "none";
+            requestAnimationFrame(drawAll);
+        }
+
+        function placeWaveformBelowVideo() {
+            if (!videoPreviewExpected || !lastData?.tracks?.length) return;
+            const root = locateVueNode();
+            if (!root) return;
+            const videoContent = root.querySelector(".lg-node-content");
+            if (!videoContent?.querySelector(".video-preview")) return;
+
+            if (!videoPortal) {
+                videoPortal = document.createElement("div");
+                videoPortal.className = "production-slate-audio-after-video";
+                videoPortal.style.width = "100%";
+                videoPortal.style.boxSizing = "border-box";
+                videoPortal.style.padding = "4px 8px 6px";
+                videoPortal.style.marginTop = "4px";
+                videoPortal.style.flex = "0 0 auto";
+                // The portal contains OUR audio DOM only. No Vue-managed
+                // video elements are moved or duplicated.
+                videoPortal.appendChild(waveforms);
+                resizeObserver.observe(videoPortal);
+            }
+            if (videoPortal.parentElement !== videoContent ||
+                videoPortal !== videoContent.lastElementChild) {
+                videoContent.appendChild(videoPortal);
+                requestAnimationFrame(drawAll);
+                refreshLayout(node);
+            }
+            const row = widgetRow(root);
+            if (row) row.style.display = "none";
+            panel.style.display = "none";
+        }
+
+        function scheduleVideoPlacement() {
+            if (placementQueued || !videoPreviewExpected) return;
+            placementQueued = true;
+            requestAnimationFrame(() => {
+                placementQueued = false;
+                placeWaveformBelowVideo();
+            });
+        }
+
+        function observeVideoContainer() {
+            const root = locateVueNode();
+            if (!root || typeof MutationObserver === "undefined") return;
+            if (root === observedNodeRoot) return;
+            videoObserver?.disconnect();
+            observedNodeRoot = root;
+            videoObserver = new MutationObserver(scheduleVideoPlacement);
+            videoObserver.observe(root, { childList: true, subtree: true });
+        }
 
         function stopPlayback() {
             if (rafId) {
@@ -199,9 +282,11 @@ app.registerExtension({
             }
         }
 
-        function render(data, playbackInfo) {
+        function render(data, playbackInfo, hasVideoPreview = false) {
             positionWaveformAfterMonitor(node);
             lastData = data;
+            videoPreviewExpected = Boolean(hasVideoPreview);
+            if (!videoPreviewExpected) restoreWaveformWidget();
             waveforms.replaceChildren();
             const allTracks = Array.isArray(data?.tracks) ? data.tracks : [];
             // Match ComfyUI Batch Count behaviour: show the latest completed
@@ -210,11 +295,13 @@ app.registerExtension({
             stopPlayback();
 
             if (!tracks.length) {
+                videoPreviewExpected = false;
+                restoreWaveformWidget();
                 panel.style.display = "none";
                 refreshLayout(node);
                 return;
             }
-            panel.style.display = "block";
+            if (!videoPreviewExpected) panel.style.display = "block";
             const descriptor = Array.isArray(playbackInfo) ? playbackInfo[0] : playbackInfo;
             const canPlay = Boolean(descriptor?.filename);
             const painters = [];
@@ -515,6 +602,10 @@ app.registerExtension({
             requestAnimationFrame(() => {
                 drawAll();
                 refreshLayout(node);
+                if (videoPreviewExpected) {
+                    observeVideoContainer();
+                    scheduleVideoPlacement();
+                }
             });
         }
 
@@ -526,7 +617,14 @@ app.registerExtension({
             // ComfyUI combines UI values into arrays before websocket delivery.
             const data = Array.isArray(payload) ? payload[0] : payload;
             const preview = detail.output?.production_slate_audio_playback;
-            render(data, preview);
+            // PreviewVideo.as_dict() returns an images list and animated=True.
+            // IMAGE + AUDIO instead supplies production_slate_image.
+            const videoPreview = Boolean(
+                detail.output?.images?.length &&
+                detail.output?.animated?.some(Boolean) &&
+                !detail.output?.production_slate_image?.length
+            );
+            render(data, preview, videoPreview);
         };
         api.addEventListener("executed", executed);
 
@@ -540,6 +638,12 @@ app.registerExtension({
             api.removeEventListener("executed", executed);
             resizeObserver.disconnect();
             stopPlayback();
+            videoObserver?.disconnect();
+            videoPreviewExpected = false;
+            if (videoPortal) {
+                videoPortal.remove();
+                videoPortal = null;
+            }
             // Restore the method if this instance still owns the wrapper.
             // Do not remove an unrelated extension's later replacement.
             if (this.addDOMWidget === observedAddDOMWidget) {

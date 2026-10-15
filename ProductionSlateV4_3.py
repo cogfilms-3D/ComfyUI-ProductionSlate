@@ -37,10 +37,10 @@ class ProductionSlateV4_3(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="ProductionSlateV4",
-            display_name="🎬 Production Slate V4.4",
+            display_name="🎬 Production Slate V4.5",
             category="Production Slate V4",
             description=(
-                "Production Slate V4.4 unified VIDEO / IMAGE "
+                "Production Slate V4.5 unified VIDEO / IMAGE / AUDIO "
                 "production output node."
             ),
 
@@ -59,6 +59,12 @@ class ProductionSlateV4_3(io.ComfyNode):
                     "image",
                     optional=True,
                     tooltip="Image production or reference asset."
+                ),
+
+                io.Audio.Input(
+                    "audio",
+                    optional=True,
+                    tooltip="Optional audio input; passed through without modification in Stage 1."
                 ),
 
                 # ------------------------------------------------
@@ -124,6 +130,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                 io.Video.Output("video"),
                 io.Image.Output("image"),
                 io.String.Output("save_path"),
+                io.Audio.Output("audio"),
             ],
         )
     @classmethod
@@ -142,6 +149,7 @@ class ProductionSlateV4_3(io.ComfyNode):
         cls,
         video=None,
         image=None,
+        audio=None,
         output_root="",
         production_name="Working Title",
         production_code="WT",
@@ -151,9 +159,9 @@ class ProductionSlateV4_3(io.ComfyNode):
         description="",
     ):
 
-        if video is None and image is None:
+        if video is None and image is None and audio is None:
             raise ValueError(
-                "Production Slate V4.4 requires a VIDEO or IMAGE input."
+                "Production Slate V4.5 requires a VIDEO, IMAGE or AUDIO input."
             )
 
 # --------------------------------------------------------
@@ -171,6 +179,10 @@ class ProductionSlateV4_3(io.ComfyNode):
 # --------------------------------------------------------
 
         save_path = ""
+
+        # Stage 1: AUDIO-only is an unchanged pass-through; no audio saving yet.
+        if audio is not None and video is None and image is None:
+            return io.NodeOutput(None, None, save_path, audio)
 
         if image is not None and video is None:
 
@@ -335,6 +347,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                 video,
                 image,
                 save_path,
+                audio,
                 ui={
                     "images": [],
                     "animated": (True,),
@@ -526,6 +539,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                 video,
                 image,
                 save_path,
+                audio,
                 ui=ui.PreviewVideo([
                     ui.SavedResult(
                         preview_filename,
@@ -790,6 +804,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                 video,
                 image,
                 save_path,
+                audio,
                 ui=ui.PreviewVideo([
                     ui.SavedResult(
                         preview_filename,
@@ -803,6 +818,7 @@ class ProductionSlateV4_3(io.ComfyNode):
             video,
             image,
             save_path,
+            audio,
         )
 
     # ------------------------------------------------------------

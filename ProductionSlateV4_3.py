@@ -29,6 +29,7 @@ import json
 import folder_paths
 
 from comfy_api.latest import io, ui, Types
+from .production_slate_audio import save_production_audio
 
 
 class ProductionSlateV4_3(io.ComfyNode):
@@ -117,6 +118,13 @@ class ProductionSlateV4_3(io.ComfyNode):
                     default="",
                     tooltip="Slate Notes."
                 ),
+
+                io.Combo.Input(
+                    "audio_format",
+                    options=["flac", "wav", "mp3"],
+                    default="flac",
+                    tooltip="Audio save format: FLAC lossless, WAV PCM, or MP3 320 kbps."
+                ),
             ],
 
             hidden=[
@@ -157,6 +165,7 @@ class ProductionSlateV4_3(io.ComfyNode):
         shot=1,
         suffix="",
         description="",
+        audio_format="flac",
     ):
 
         if video is None and image is None and audio is None:
@@ -180,9 +189,20 @@ class ProductionSlateV4_3(io.ComfyNode):
 
         save_path = ""
 
-        # Stage 1: AUDIO-only is an unchanged pass-through; no audio saving yet.
+        # AUDIO-only: save a numbered production take and pass AUDIO unchanged.
         if audio is not None and video is None and image is None:
-            return io.NodeOutput(None, None, audio, save_path)
+            output_root = output_root.strip()
+            production_name = cls._sanitize(production_name) or "Working Title"
+            production_code = cls._sanitize(production_code) or "WT"
+            suffix = cls._sanitize(suffix).upper()
+            paths = save_production_audio(
+                audio, output_root, production_name, production_code,
+                scene, shot, suffix, audio_format,
+                prompt=getattr(cls.hidden, "prompt", None),
+                extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+            )
+            print(f"🎬 Production Slate — AUDIO save: {len(paths)} take(s), first: {paths[0]}")
+            return io.NodeOutput(None, None, audio, paths[0])
 
         if image is not None and video is None:
 
@@ -328,6 +348,14 @@ class ProductionSlateV4_3(io.ComfyNode):
             )
 
             save_path = png_path
+
+            if audio is not None:
+                save_production_audio(
+                    audio, output_root, production_name, production_code,
+                    scene, shot, suffix, audio_format, first_take=take,
+                    prompt=getattr(cls.hidden, "prompt", None),
+                    extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+                )
 
             print(
                 "🎬 Production Slate — IMAGE save\n"
@@ -502,6 +530,14 @@ class ProductionSlateV4_3(io.ComfyNode):
             )
 
             save_path = mp4_path
+
+            if audio is not None:
+                save_production_audio(
+                    audio, output_root, production_name, production_code,
+                    scene, shot, suffix, audio_format, first_take=take,
+                    prompt=getattr(cls.hidden, "prompt", None),
+                    extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+                )
 
             # ----------------------------------------------------
             # VIDEO-only temporary preview
@@ -763,6 +799,14 @@ class ProductionSlateV4_3(io.ComfyNode):
 
              # VIDEO is the primary asset for paired saves.
             save_path = mp4_path
+
+            if audio is not None:
+                save_production_audio(
+                    audio, output_root, production_name, production_code,
+                    scene, shot, suffix, audio_format, first_take=take,
+                    prompt=getattr(cls.hidden, "prompt", None),
+                    extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+                )
 
             # ----------------------------------------------------
             # PAIRED temporary VIDEO preview

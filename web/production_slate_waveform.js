@@ -140,7 +140,10 @@ app.registerExtension({
         panel.style.padding = "4px";
         panel.style.background = "transparent";
         panel.style.border = "none";
-        panel.style.borderRadius = "8px";
+        // Visually centre the waveform in the available space below the
+        // execution monitor without changing any widget heights or ordering.
+        // The original preview had more clear space above than below.
+        panel.style.transform = "translateY(-16px)";
         panel.style.color = "#e7e4ee";
         panel.style.fontFamily = "Arial, sans-serif";
 
@@ -201,12 +204,12 @@ app.registerExtension({
             const painters = [];
             tracks.forEach((track) => {
                 const row = document.createElement("div");
-                // Steel-blue panel contrasts with Production Slate's purple.
-                // The waveform canvas remains darker for amplitude legibility.
-                row.style.background = "#23475a";
-                row.style.border = "1px solid #52788b";
+                // One plain, dark preview surface, consistent with the
+                // existing image/video boxes: no extra blue frame or border.
+                row.style.background = "#101b28";
+                row.style.border = "none";
                 row.style.borderRadius = "6px";
-                row.style.padding = "5px";
+                row.style.padding = "4px";
                 row.style.marginBottom = "0";
                 row.style.boxSizing = "border-box";
 
@@ -339,7 +342,7 @@ app.registerExtension({
                     button.style.width = "26px";
                     button.style.height = "30px";
                     button.style.padding = "0";
-                    button.style.border = "1px solid #45576c";
+                    button.style.border = "none";
                     button.style.borderRadius = "5px";
                     button.style.background = "#25374a";
                     button.style.color = "#ecf3f8";

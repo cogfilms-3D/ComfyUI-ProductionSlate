@@ -456,6 +456,7 @@ app.registerExtension({
             "suffix",
             "description",
             "audio_format",
+            "latent_format",
         ];
 
         const unifiedRequiredNamedValues = [
@@ -515,7 +516,8 @@ app.registerExtension({
                         name
                     )
                         ? namedValues[name]
-                        : (name === "audio_format" ? "flac" : "")
+                        : (name === "audio_format" ? "flac" :
+                           name === "latent_format" ? "Auto Detect" : "")
             );
 
             const previousValues =
@@ -628,6 +630,9 @@ app.registerExtension({
         const audioFormatWidget = node.widgets?.find(
             (widget) => widget.name === "audio_format"
         );
+        const latentFormatWidget = node.widgets?.find(
+            (widget) => widget.name === "latent_format"
+        );
 
         const clearSlate = node.widgets?.find(
             (widget) => widget.name === "clear_slate"
@@ -671,6 +676,9 @@ app.registerExtension({
 
         if (audioFormatWidget) {
             audioFormatWidget.label = "Audio Format";
+        }
+        if (latentFormatWidget) {
+            latentFormatWidget.label = "Latent Format";
         }
 
         // --------------------------------------------------------
@@ -1968,6 +1976,9 @@ app.registerExtension({
         const audioFormatWidget = node.widgets?.find(
             (widget) => widget.name === "audio_format"
         );
+        const latentFormatWidget = node.widgets?.find(
+            (widget) => widget.name === "latent_format"
+        );
 
         const clearSlate = node.widgets?.find(
             (widget) => widget.name === "clear_slate"
@@ -2004,6 +2015,9 @@ app.registerExtension({
         if (audioFormatWidget) {
             audioFormatWidget.label = "Audio Format";
         }
+        if (latentFormatWidget) {
+            latentFormatWidget.label = "Latent Format";
+        }
 
         if (clearSlate) {
             clearSlate.hidden = true;
@@ -2032,7 +2046,7 @@ app.registerExtension({
         }
 
         const nodeTypeLabel =
-            isUnified ? "V4.4" : (isVideo ? "Video" : "Image");
+            isUnified ? "V4.5" : (isVideo ? "Video" : "Image");
 
         console.log(
             `[ProductionSlate] Loaded ${nodeTypeLabel} workflow node refreshed.`

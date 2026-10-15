@@ -15,10 +15,10 @@ function timecode(seconds) {
 }
 
 function drawWaveform(canvas, track, expanded) {
-    // Canvas shares a flex row with Play, so use its displayed width.
+    // Use local layout pixels, never the zoomed screen-space rect:
+    // ComfyUI transforms the whole node when the graph is zoomed.
     const targetWidth = Math.max(120, Math.round(
-        canvas.getBoundingClientRect().width ||
-        (canvas.parentElement?.clientWidth || 356) - 36
+        canvas.clientWidth || canvas.parentElement?.clientWidth || 320
     ));
     // The time labels live in DOM below canvas to avoid stretched glyphs.
     const height = expanded ? 110 : 62;
@@ -252,10 +252,16 @@ app.registerExtension({
                 cursor.style.position = "absolute";
                 cursor.style.top = "0";
                 cursor.style.bottom = "0";
-                cursor.style.left = "0%";
-                cursor.style.width = "1.5px";
+                cursor.style.left = "0";
+                cursor.style.width = "2px";
                 cursor.style.background = "#ffcf78";
+                cursor.style.boxShadow = "0 0 3px 0.5px rgba(255,207,120,0.62)";
                 cursor.style.pointerEvents = "none";
+                // Compositor-driven translation prevents layout/repaint work
+                // on every frame; the soft edge reduces subpixel flashing.
+                cursor.style.willChange = "transform";
+                cursor.style.backfaceVisibility = "hidden";
+                cursor.style.transform = "translate3d(0,0,0)";
                 cursorTrack.appendChild(cursor);
                 timeline.appendChild(cursorTrack);
 
@@ -294,9 +300,12 @@ app.registerExtension({
                     const fraction = duration > 0
                         ? Math.min(1, Math.max(0, playhead / duration))
                         : 0;
-                    // Percentages are relative to cursorTrack's CSS width,
-                    // independent of browser DPI, ComfyUI zoom or node resizing.
-                    cursor.style.left = (fraction * 100) + "%";
+                    // clientWidth is in the node's own CSS pixels, unlike
+                    // getBoundingClientRect which changes with ComfyUI zoom.
+                    const localWidth = cursorTrack.clientWidth;
+                    if (localWidth <= 0) return;
+                    const x = fraction * localWidth;
+                    cursor.style.transform = `translate3d(${x.toFixed(3)}px,0,0)`;
                 };
                 const paint = () => {
                     drawWaveform(canvas, track, true);
@@ -402,7 +411,9 @@ app.registerExtension({
                         updateCursor();
                     });
                     audio.addEventListener("seeked", updateCursor);
-                    audio.addEventListener("timeupdate", updateCursor);
+                    // The rAF loop is the single animation clock while
+                    // playing. Listening to timeupdate as well caused redundant
+                    // off-frame movement, particularly noticeable when zoomed.
                     audio.addEventListener("error", () => {
                         button.textContent = "!";
                         button.title = "Preview audio unavailable; saved audio is unaffected";

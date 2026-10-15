@@ -625,6 +625,10 @@ app.registerExtension({
             (widget) => widget.name === "description"
         );
 
+        const audioFormatWidget = node.widgets?.find(
+            (widget) => widget.name === "audio_format"
+        );
+
         const clearSlate = node.widgets?.find(
             (widget) => widget.name === "clear_slate"
         );
@@ -663,6 +667,10 @@ app.registerExtension({
 
         if (descriptionWidget) {
             descriptionWidget.label = "Slate Notes";
+        }
+
+        if (audioFormatWidget) {
+            audioFormatWidget.label = "Audio Format";
         }
 
         // --------------------------------------------------------
@@ -1957,6 +1965,10 @@ app.registerExtension({
             (widget) => widget.name === "description"
         );
 
+        const audioFormatWidget = node.widgets?.find(
+            (widget) => widget.name === "audio_format"
+        );
+
         const clearSlate = node.widgets?.find(
             (widget) => widget.name === "clear_slate"
         );
@@ -1987,6 +1999,10 @@ app.registerExtension({
 
         if (descriptionWidget) {
             descriptionWidget.label = "Slate Notes";
+        }
+
+        if (audioFormatWidget) {
+            audioFormatWidget.label = "Audio Format";
         }
 
         if (clearSlate) {

@@ -250,7 +250,12 @@ class ProductionSlateV4_3(io.ComfyNode):
             )
             save_prepared_latent(prepared_latent, path)
             print(f"🎬 Production Slate — LATENT-only save: {path}")
-            return io.NodeOutput(None, None, None, path)
+            # ComfyUI emits the "executed" event only when non-empty UI
+            # data is returned. Let the monitor stop without adding a preview.
+            return io.NodeOutput(
+                None, None, None, path,
+                ui={"production_slate_latent_saved": [os.path.basename(path)]},
+            )
 
         # AUDIO-only: save a numbered production take and pass AUDIO unchanged.
         if audio is not None and video is None and image is None:

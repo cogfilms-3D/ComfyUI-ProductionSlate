@@ -29,7 +29,7 @@ import json
 import folder_paths
 
 from comfy_api.latest import io, ui, Types
-from .production_slate_audio import save_production_audio
+from .production_slate_audio import save_production_audio, create_audio_playback_preview
 from .production_slate_waveform import audio_waveform_preview
 
 
@@ -205,7 +205,10 @@ class ProductionSlateV4_3(io.ComfyNode):
             print(f"🎬 Production Slate — AUDIO save: {len(paths)} take(s), first: {paths[0]}")
             return io.NodeOutput(
                 None, None, audio, paths[0],
-                ui={"production_slate_audio_waveform": [audio_waveform_preview(audio, paths)]},
+                ui={
+                    "production_slate_audio_waveform": [audio_waveform_preview(audio, paths)],
+                    "production_slate_audio_playback": [create_audio_playback_preview(paths)],
+                },
             )
 
         if image is not None and video is None:
@@ -387,6 +390,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                     "animated": (True,),
                     "production_slate_image": preview.values,
                     "production_slate_audio_waveform": [audio_waveform_preview(audio, audio_paths)] if audio is not None else [],
+                    "production_slate_audio_playback": [create_audio_playback_preview(audio_paths)] if audio is not None else [],
                 }
             )
 
@@ -594,6 +598,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                         )
                     ]).as_dict(),
                     "production_slate_audio_waveform": [audio_waveform_preview(audio, audio_paths)] if audio is not None else [],
+                    "production_slate_audio_playback": [create_audio_playback_preview(audio_paths)] if audio is not None else [],
                 }
             )
         # --------------------------------------------------------
@@ -872,6 +877,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                         )
                     ]).as_dict(),
                     "production_slate_audio_waveform": [audio_waveform_preview(audio, audio_paths)] if audio is not None else [],
+                    "production_slate_audio_playback": [create_audio_playback_preview(audio_paths)] if audio is not None else [],
                 }
             )
 

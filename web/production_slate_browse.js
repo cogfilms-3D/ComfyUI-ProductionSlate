@@ -348,10 +348,73 @@ api.addEventListener("execution_error", (event) => {
 });
 
 
+function migrateProductionSlateAudioOutputSlots(graphData) {
+    // Older saved workflows used VIDEO, IMAGE, save_path[, AUDIO].
+    // Keep those links intact when loading the V4.5 output layout.
+    const links = graphData?.links;
+    const graphLinks = Array.isArray(links)
+        ? links
+        : (links && typeof links === "object" ? Object.values(links) : []);
+
+    for (const nodeInfo of graphData?.nodes ?? []) {
+        if (
+            nodeInfo.type !== "ProductionSlateV4" ||
+            !Array.isArray(nodeInfo.outputs) ||
+            String(nodeInfo.outputs[2]?.name ?? "").toLowerCase() !== "save_path"
+        ) {
+            continue;
+        }
+
+        const oldOutputs = nodeInfo.outputs;
+        const oldAudioFourth =
+            String(oldOutputs[3]?.name ?? "").toLowerCase() === "audio";
+
+        // Avoid touching unfamiliar schemas with additional outputs.
+        if (oldOutputs.length > 3 && !oldAudioFourth) {
+            continue;
+        }
+
+        if (oldAudioFourth) {
+            nodeInfo.outputs = [
+                oldOutputs[0], oldOutputs[1], oldOutputs[3], oldOutputs[2],
+            ];
+        } else {
+            nodeInfo.outputs = [
+                oldOutputs[0],
+                oldOutputs[1],
+                { name: "audio", type: "AUDIO", links: [] },
+                oldOutputs[2],
+            ];
+        }
+
+        for (const link of graphLinks) {
+            if (Array.isArray(link) && String(link[1]) === String(nodeInfo.id)) {
+                if (link[2] === 2) {
+                    link[2] = 3;
+                } else if (oldAudioFourth && link[2] === 3) {
+                    link[2] = 2;
+                }
+            } else if (
+                link &&
+                !Array.isArray(link) &&
+                String(link.origin_id) === String(nodeInfo.id)
+            ) {
+                if (link.origin_slot === 2) {
+                    link.origin_slot = 3;
+                } else if (oldAudioFourth && link.origin_slot === 3) {
+                    link.origin_slot = 2;
+                }
+            }
+        }
+    }
+}
+
 app.registerExtension({
     name: "ProductionSlate.Browse",
 
     beforeConfigureGraph(graphData) {
+        migrateProductionSlateAudioOutputSlots(graphData);
+
         const supportedTypes = new Set([
             "ProductionSlateV4_Build004C_Image",
             "ProductionSlateV4_Build004C_Video",

@@ -96,9 +96,10 @@ function drawWaveform(canvas, track, expanded) {
 
 }
 
-// Keep the execution monitor above the waveform, regardless of the order
-// in which ComfyUI initialises frontend extensions or restores a workflow.
-// The waveform remains the last widget, below the monitor and other previews.
+// Keep the execution monitor above the waveform, regardless of extension
+// ordering. ComfyUI adds its native video-preview widget asynchronously
+// after loading the saved video; it must precede the audio waveform.
+// The waveform stays after all existing media previews.
 function positionWaveformAfterMonitor(node) {
     const widgets = node.widgets;
     if (!Array.isArray(widgets)) return false;
@@ -157,6 +158,21 @@ app.registerExtension({
             { serialize: false, hideOnZoom: false }
         );
         widget.serialize = false;
+
+        // ComfyUI's built-in video preview is created asynchronously by
+        // useNodeVideo() as a widget named "video-preview". It may arrive
+        // after our executed event and any initial widget-order correction.
+        // Observe that specific widget insertion, retaining the original
+        // addDOMWidget method, widget object and native video controls.
+        const originalAddDOMWidget = node.addDOMWidget;
+        const observedAddDOMWidget = function(name, ...args) {
+            const added = originalAddDOMWidget.call(this, name, ...args);
+            if (name === "video-preview") {
+                if (positionWaveformAfterMonitor(this)) refreshLayout(this);
+            }
+            return added;
+        };
+        node.addDOMWidget = observedAddDOMWidget;
 
         // Defer until the browse/monitor extension has added its widgets.
         // A loaded workflow may restore saved widget order afterwards, so we
@@ -524,6 +540,11 @@ app.registerExtension({
             api.removeEventListener("executed", executed);
             resizeObserver.disconnect();
             stopPlayback();
+            // Restore the method if this instance still owns the wrapper.
+            // Do not remove an unrelated extension's later replacement.
+            if (this.addDOMWidget === observedAddDOMWidget) {
+                this.addDOMWidget = originalAddDOMWidget;
+            }
             if (priorOnRemoved) priorOnRemoved.apply(this, args);
         };
     },

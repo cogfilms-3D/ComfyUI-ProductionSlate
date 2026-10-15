@@ -6,9 +6,12 @@ ComfyUI AUDIO payload: {"waveform": Tensor[B,C,T], "sample_rate": int}.
 import json
 import os
 import re
+import shutil
+import uuid
 from datetime import datetime
 
 import av
+import folder_paths
 
 
 AUDIO_EXTENSIONS = {"flac", "wav", "mp3"}
@@ -141,3 +144,24 @@ def save_production_audio(
 
     print(f"🎬 Production Slate — saved {len(results)} AUDIO take(s) to {audio_dir}")
     return results
+
+def create_audio_playback_preview(paths):
+    """Expose the latest saved take via ComfyUI's standard /view?type=temp route.
+
+    Production files can live outside ComfyUI's configured output directory.
+    A randomly named temporary copy is used rather than exposing arbitrary
+    local filesystem paths to the browser. No transcoding or modification.
+    """
+    if not paths:
+        return None
+
+    source = paths[-1]
+    extension = os.path.splitext(source)[1].lower()
+    if extension not in {".flac", ".wav", ".mp3"}:
+        raise ValueError("Audio preview requires FLAC, WAV or MP3.")
+
+    filename = f"production_slate_audio_preview_{uuid.uuid4().hex}{extension}"
+    destination = os.path.join(folder_paths.get_temp_directory(), filename)
+    shutil.copyfile(source, destination)
+
+    return {"filename": filename, "subfolder": "", "type": "temp"}

@@ -123,8 +123,11 @@ def prepare_latent(latent, selection="Auto Detect", prompt=None, extra_pnginfo=N
     fmt = FORMATS[selection] or ("av_nested" if nested else "standard")
     if fmt == "standard" and nested:
         raise ValueError("ComfyUI Standard (.latent) cannot store nested AV samples; choose AV Nested or H3 Motion Context")
-    if fmt == "h3_motion_context" and not (nested and len(parts) == 2 and parts[0].ndim == 5 and parts[1].ndim == 4):
-        raise ValueError("H3 Motion Context requires two streams: 5-D video and 4-D audio")
+    if fmt == "h3_motion_context" and not (
+        nested and len(parts) == 2 and parts[0].ndim == 5 and parts[1].ndim == 4
+        and parts[0].shape[1] == 24 and parts[1].shape[1] == 32
+    ):
+        raise ValueError("H3 Motion Context requires two streams: 5-D video (24 channels) and 4-D audio (32 channels)")
 
     tensors = {}
     if fmt == "standard":

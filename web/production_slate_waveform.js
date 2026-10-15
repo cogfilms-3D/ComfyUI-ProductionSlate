@@ -108,6 +108,28 @@ function drawWaveform(canvas, track, expanded, playheadSeconds = 0) {
 
 }
 
+// Keep the execution monitor above the waveform, regardless of the order
+// in which ComfyUI initialises frontend extensions or restores a workflow.
+// The waveform remains the last widget, below the monitor and other previews.
+function positionWaveformAfterMonitor(node) {
+    const widgets = node.widgets;
+    if (!Array.isArray(widgets)) return false;
+
+    const monitorIndex = widgets.findIndex(
+        (item) => item?.name === "production_slate_monitor"
+    );
+    const waveformIndex = widgets.findIndex(
+        (item) => item?.name === "production_slate_waveform"
+    );
+    if (monitorIndex < 0 || waveformIndex < 0 ||
+        waveformIndex === widgets.length - 1) return false;
+
+    const [waveform] = widgets.splice(waveformIndex, 1);
+    widgets.push(waveform);
+    node.setDirtyCanvas?.(true, true);
+    return true;
+}
+
 function refreshLayout(node) {
     requestAnimationFrame(() => {
         if (!node.graph) return;
@@ -145,6 +167,13 @@ app.registerExtension({
         );
         widget.serialize = false;
 
+        // Defer until the browse/monitor extension has added its widgets.
+        // A loaded workflow may restore saved widget order afterwards, so we
+        // also enforce this during loadedGraphNode and when results arrive.
+        requestAnimationFrame(() => {
+            if (positionWaveformAfterMonitor(node)) refreshLayout(node);
+        });
+
         let drawAll = () => {};
         let lastData = null;
         let player = null;
@@ -164,6 +193,7 @@ app.registerExtension({
         }
 
         function render(data, playbackInfo) {
+            positionWaveformAfterMonitor(node);
             lastData = data;
             waveforms.replaceChildren();
             const allTracks = Array.isArray(data?.tracks) ? data.tracks : [];
@@ -444,5 +474,12 @@ app.registerExtension({
             stopPlayback();
             if (priorOnRemoved) priorOnRemoved.apply(this, args);
         };
+    },
+
+    loadedGraphNode(node) {
+        if (node.comfyClass !== "ProductionSlateV4") return;
+        requestAnimationFrame(() => {
+            if (positionWaveformAfterMonitor(node)) refreshLayout(node);
+        });
     },
 });

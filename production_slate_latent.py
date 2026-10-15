@@ -13,9 +13,11 @@ record so a future Production Slate loader can restore the complete payload.
 Unknown values raise an error *before any file is written*.
 """
 
+import errno
 import json
 import os
 import re
+import shutil
 import tempfile
 from dataclasses import dataclass
 from typing import Any
@@ -186,7 +188,25 @@ def save_prepared_latent(prepared, destination):
         save_file(payload, temporary, metadata=prepared.metadata)
         # Atomic create-if-absent where hardlinks are supported (NTFS/local drives).
         # No os.replace: that could destroy an existing numbered production take.
-        os.link(temporary, destination)
+        try:
+            os.link(temporary, destination)
+        except FileExistsError:
+            raise FileExistsError(f"Production Slate LATENT already exists: {destination}")
+        except OSError as exc:
+            if exc.errno not in (errno.EPERM, errno.EOPNOTSUPP, errno.ENOSYS, errno.EXDEV, errno.EINVAL):
+                raise
+            # exFAT/network volumes may disallow hardlinks. Safely create the
+            # destination exclusively instead; still never overwrite a take.
+            output_fd = os.open(destination, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
+            try:
+                with os.fdopen(output_fd, "wb") as output, open(temporary, "rb") as source:
+                    shutil.copyfileobj(source, output, length=1024 * 1024)
+                    output.flush()
+                    os.fsync(output.fileno())
+            except BaseException:
+                if os.path.exists(destination):
+                    os.remove(destination)
+                raise
     finally:
         if os.path.exists(temporary):
             os.remove(temporary)

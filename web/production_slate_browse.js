@@ -455,6 +455,7 @@ app.registerExtension({
             "shot",
             "suffix",
             "description",
+            "audio_format",
         ];
 
         const unifiedRequiredNamedValues = [
@@ -514,7 +515,7 @@ app.registerExtension({
                         name
                     )
                         ? namedValues[name]
-                        : ""
+                        : (name === "audio_format" ? "flac" : "")
             );
 
             const previousValues =

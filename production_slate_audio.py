@@ -42,6 +42,7 @@ def save_production_audio(
     first_take=None,
     prompt=None,
     extra_pnginfo=None,
+    date_stamp=None,
 ):
     """Save each AUDIO batch entry, returning its full saved file paths.
 
@@ -65,7 +66,7 @@ def save_production_audio(
 
     scene_id = f"SC{int(scene):03d}"
     shot_id = f"SH{int(shot):03d}{suffix}"
-    date_stamp = datetime.now().strftime("%y%m%d")
+    date_stamp = date_stamp or datetime.now().strftime("%y%m%d")
     prefix = f"{production_code}_{scene_id}_{shot_id}_{date_stamp}_"
     audio_dir = os.path.join(output_root, production_name, scene_id, "Audio")
     os.makedirs(audio_dir, exist_ok=True)
@@ -138,4 +139,5 @@ def save_production_audio(
 
         results.append(path)
 
+    print(f"🎬 Production Slate — saved {len(results)} AUDIO take(s) to {audio_dir}")
     return results

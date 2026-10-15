@@ -111,7 +111,14 @@ def test_rejects_incompatible_format_and_unsupported_extra(tmp_path):
     ])}
     with pytest.raises(ValueError, match="cannot store nested"):
         prepare_latent(nested, "ComfyUI Standard (.latent)")
-    with pytest.raises(ValueError, match="5-D video and 4-D audio"):
+    with pytest.raises(ValueError, match="24 channels"):
+        prepare_latent({
+            "samples": FakeNestedTensor([
+                torch.zeros(1, 128, 2, 2, 2),
+                torch.zeros(1, 8, 2, 5),
+            ]),
+        }, "H3 Motion Context (.safetensors)")
+    with pytest.raises(ValueError, match="24 channels"):
         prepare_latent({"samples": torch.zeros(1, 4, 8, 8)}, "H3 Motion Context (.safetensors)")
     with pytest.raises(ValueError, match="unsupported type"):
         prepare_latent({"samples": torch.zeros(1, 4, 8, 8), "custom": object()})

@@ -355,6 +355,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                     scene, shot, suffix, audio_format, first_take=take,
                     prompt=getattr(cls.hidden, "prompt", None),
                     extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+                    date_stamp=date_stamp,
                 )
 
             print(
@@ -537,6 +538,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                     scene, shot, suffix, audio_format, first_take=take,
                     prompt=getattr(cls.hidden, "prompt", None),
                     extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+                    date_stamp=date_stamp,
                 )
 
             # ----------------------------------------------------
@@ -806,6 +808,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                     scene, shot, suffix, audio_format, first_take=take,
                     prompt=getattr(cls.hidden, "prompt", None),
                     extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
+                    date_stamp=date_stamp,
                 )
 
             # ----------------------------------------------------

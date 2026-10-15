@@ -30,6 +30,7 @@ import folder_paths
 
 from comfy_api.latest import io, ui, Types
 from .production_slate_audio import save_production_audio
+from .production_slate_waveform import audio_waveform_preview
 
 
 class ProductionSlateV4_3(io.ComfyNode):
@@ -202,7 +203,10 @@ class ProductionSlateV4_3(io.ComfyNode):
                 extra_pnginfo=getattr(cls.hidden, "extra_pnginfo", None),
             )
             print(f"🎬 Production Slate — AUDIO save: {len(paths)} take(s), first: {paths[0]}")
-            return io.NodeOutput(None, None, audio, paths[0])
+            return io.NodeOutput(
+                None, None, audio, paths[0],
+                ui={"production_slate_audio_waveform": audio_waveform_preview(audio, paths)},
+            )
 
         if image is not None and video is None:
 
@@ -349,8 +353,9 @@ class ProductionSlateV4_3(io.ComfyNode):
 
             save_path = png_path
 
+            audio_paths = []
             if audio is not None:
-                save_production_audio(
+                audio_paths = save_production_audio(
                     audio, output_root, production_name, production_code,
                     scene, shot, suffix, audio_format, first_take=take,
                     prompt=getattr(cls.hidden, "prompt", None),
@@ -381,6 +386,7 @@ class ProductionSlateV4_3(io.ComfyNode):
                     "images": [],
                     "animated": (True,),
                     "production_slate_image": preview.values,
+                    "production_slate_audio_waveform": audio_waveform_preview(audio, audio_paths),
                 }
             )
 
@@ -532,8 +538,9 @@ class ProductionSlateV4_3(io.ComfyNode):
 
             save_path = mp4_path
 
+            audio_paths = []
             if audio is not None:
-                save_production_audio(
+                audio_paths = save_production_audio(
                     audio, output_root, production_name, production_code,
                     scene, shot, suffix, audio_format, first_take=take,
                     prompt=getattr(cls.hidden, "prompt", None),
@@ -578,13 +585,16 @@ class ProductionSlateV4_3(io.ComfyNode):
                 image,
                 audio,
                 save_path,
-                ui=ui.PreviewVideo([
-                    ui.SavedResult(
-                        preview_filename,
-                        "",
-                        io.FolderType.temp
-                    )
-                ])
+                ui={
+                    **ui.PreviewVideo([
+                        ui.SavedResult(
+                            preview_filename,
+                            "",
+                            io.FolderType.temp
+                        )
+                    ]).as_dict(),
+                    "production_slate_audio_waveform": audio_waveform_preview(audio, audio_paths),
+                }
             )
         # --------------------------------------------------------
         # PAIRED VIDEO + IMAGE production save
@@ -802,8 +812,9 @@ class ProductionSlateV4_3(io.ComfyNode):
              # VIDEO is the primary asset for paired saves.
             save_path = mp4_path
 
+            audio_paths = []
             if audio is not None:
-                save_production_audio(
+                audio_paths = save_production_audio(
                     audio, output_root, production_name, production_code,
                     scene, shot, suffix, audio_format, first_take=take,
                     prompt=getattr(cls.hidden, "prompt", None),
@@ -852,13 +863,16 @@ class ProductionSlateV4_3(io.ComfyNode):
                 image,
                 audio,
                 save_path,
-                ui=ui.PreviewVideo([
-                    ui.SavedResult(
-                        preview_filename,
-                        "",
-                        io.FolderType.temp
-                    )
-                ])
+                ui={
+                    **ui.PreviewVideo([
+                        ui.SavedResult(
+                            preview_filename,
+                            "",
+                            io.FolderType.temp
+                        )
+                    ]).as_dict(),
+                    "production_slate_audio_waveform": audio_waveform_preview(audio, audio_paths),
+                }
             )
 
         return io.NodeOutput(

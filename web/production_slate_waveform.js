@@ -235,33 +235,33 @@ app.registerExtension({
                 canvas.style.borderRadius = "4px 4px 0 0";
                 timeline.appendChild(canvas);
 
-                // Keep the amber playhead in a CSS-relative track matching
-                // the waveform's 12px inset. The earlier version used
-                // getBoundingClientRect() (screen pixels) as a CSS left offset
-                // (local pixels), so ComfyUI zoom could send it off-screen.
-                const cursorTrack = document.createElement("div");
+                // A single SVG stroke stays antialiased at ComfyUI zoom
+                // extremes. non-scaling-stroke keeps line thickness consistent
+                // instead of alternately rasterising one or two yellow columns.
+                const ns = "http://www.w3.org/2000/svg";
+                const cursorTrack = document.createElementNS(ns, "svg");
+                cursorTrack.setAttribute("viewBox", "0 0 100 100");
+                cursorTrack.setAttribute("preserveAspectRatio", "none");
+                cursorTrack.setAttribute("aria-hidden", "true");
                 cursorTrack.style.position = "absolute";
                 cursorTrack.style.left = "12px";
                 cursorTrack.style.right = "12px";
+                cursorTrack.style.width = "calc(100% - 24px)";
                 cursorTrack.style.top = "8px";
-                cursorTrack.style.height = "94px"; // 110px canvas, 8px top/bottom
+                cursorTrack.style.height = "94px";
                 cursorTrack.style.pointerEvents = "none";
+                cursorTrack.style.overflow = "visible";
                 cursorTrack.style.zIndex = "1";
 
-                const cursor = document.createElement("div");
-                cursor.style.position = "absolute";
-                cursor.style.top = "0";
-                cursor.style.bottom = "0";
-                cursor.style.left = "0";
-                cursor.style.width = "2px";
-                cursor.style.background = "#ffcf78";
-                cursor.style.boxShadow = "0 0 3px 0.5px rgba(255,207,120,0.62)";
-                cursor.style.pointerEvents = "none";
-                // Compositor-driven translation prevents layout/repaint work
-                // on every frame; the soft edge reduces subpixel flashing.
-                cursor.style.willChange = "transform";
-                cursor.style.backfaceVisibility = "hidden";
-                cursor.style.transform = "translate3d(0,0,0)";
+                const cursor = document.createElementNS(ns, "line");
+                cursor.setAttribute("x1", "0");
+                cursor.setAttribute("x2", "0");
+                cursor.setAttribute("y1", "0");
+                cursor.setAttribute("y2", "100");
+                cursor.setAttribute("stroke", "#ffcf78");
+                cursor.setAttribute("stroke-width", "2");
+                cursor.setAttribute("vector-effect", "non-scaling-stroke");
+                cursor.setAttribute("stroke-linecap", "butt");
                 cursorTrack.appendChild(cursor);
                 timeline.appendChild(cursorTrack);
 
@@ -295,17 +295,14 @@ app.registerExtension({
                 waveforms.appendChild(row);
 
                 let playhead = 0;
+                let durationOnTimeline = Number(track.duration) || 0;
                 const movePlayhead = () => {
-                    const duration = Number(track.duration) || 0;
-                    const fraction = duration > 0
-                        ? Math.min(1, Math.max(0, playhead / duration))
+                    const fraction = durationOnTimeline > 0
+                        ? Math.min(1, Math.max(0, playhead / durationOnTimeline))
                         : 0;
-                    // clientWidth is in the node's own CSS pixels, unlike
-                    // getBoundingClientRect which changes with ComfyUI zoom.
-                    const localWidth = cursorTrack.clientWidth;
-                    if (localWidth <= 0) return;
-                    const x = fraction * localWidth;
-                    cursor.style.transform = `translate3d(${x.toFixed(3)}px,0,0)`;
+                    const x = (fraction * 100).toFixed(4);
+                    cursor.setAttribute("x1", x);
+                    cursor.setAttribute("x2", x);
                 };
                 const paint = () => {
                     drawWaveform(canvas, track, true);
@@ -318,7 +315,6 @@ app.registerExtension({
                     button.type = "button";
                     // Vector icons avoid dependence on a platform font's
                     // mismatched play triangle and Roman numeral II glyph.
-                    const ns = "http://www.w3.org/2000/svg";
                     const buttonIcon = document.createElementNS(ns, "svg");
                     buttonIcon.setAttribute("viewBox", "0 0 24 24");
                     buttonIcon.setAttribute("width", "16");
@@ -366,10 +362,19 @@ app.registerExtension({
                     player = audio;
                     let pendingSeek = null;
                     audio.addEventListener("loadedmetadata", () => {
+                        // Both the playback clock and the waveform timeline
+                        // must use the actual encoded file duration. This can
+                        // differ slightly from the original tensor's duration.
+                        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+                            durationOnTimeline = audio.duration;
+                            labels.children[1].textContent = timecode(audio.duration / 2);
+                            labels.children[2].textContent = timecode(audio.duration);
+                        }
                         if (pendingSeek !== null && Number.isFinite(pendingSeek)) {
                             try { audio.currentTime = pendingSeek; } catch { /* loading */ }
                             pendingSeek = null;
                         }
+                        movePlayhead();
                     });
 
                     const updateButton = () => {
@@ -432,12 +437,17 @@ app.registerExtension({
 
                     const seek = (event) => {
                         const bounds = canvas.getBoundingClientRect();
-                        const width = Math.max(1, bounds.width);
-                        const left = 12;
-                        const usable = Math.max(1, width - 24);
-                        const coordinate = (event.clientX - bounds.left) * (width / Math.max(1, bounds.width));
-                        const fraction = Math.min(1, Math.max(0, (coordinate - left) / usable));
-                        const seconds = fraction * (Number(track.duration) || 0);
+                        // Convert the screen-space pointer coordinate to a
+                        // relative fraction, then remove the 12px local inset.
+                        // Never mix screen pixels with zoomed node CSS pixels.
+                        const proportion = (event.clientX - bounds.left) /
+                            Math.max(1, bounds.width);
+                        const localWidth = Math.max(25, canvas.clientWidth);
+                        const insetFraction = 12 / localWidth;
+                        const fraction = Math.min(1, Math.max(0,
+                            (proportion - insetFraction) / (1 - 2 * insetFraction)
+                        ));
+                        const seconds = fraction * durationOnTimeline;
                         playhead = seconds;
                         canvas.title = "Seek: " + timecode(seconds);
                         // currentTime also works when paused, without starting play.

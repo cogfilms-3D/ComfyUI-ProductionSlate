@@ -15,11 +15,14 @@ function timecode(seconds) {
 }
 
 function drawWaveform(canvas, track, expanded, playheadSeconds = 0) {
-    const targetWidth = Math.max(240, Math.floor(canvas.parentElement?.clientWidth || 356));
+    // Canvas shares a flex row with Play, so use its displayed width.
+    const targetWidth = Math.max(120, Math.round(
+        canvas.getBoundingClientRect().width ||
+        (canvas.parentElement?.clientWidth || 356) - 36
+    ));
     const height = expanded ? 130 : 72;
     const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
 
-    canvas.style.width = "100%";
     canvas.style.height = height + "px";
     canvas.width = Math.round(targetWidth * pixelRatio);
     canvas.height = Math.round(height * pixelRatio);
@@ -202,7 +205,8 @@ app.registerExtension({
 
                 const canvas = document.createElement("canvas");
                 canvas.style.display = "block";
-                canvas.style.flex = "1 1 auto";
+                canvas.style.flex = "1 1 0%";
+                canvas.style.width = "0px";
                 canvas.style.minWidth = "0";
                 canvas.style.borderRadius = "4px";
                 strip.appendChild(canvas);
@@ -241,6 +245,13 @@ app.registerExtension({
                     audio.preload = "metadata";
                     audio.src = api.apiURL(`/view?${params.toString()}`);
                     player = audio;
+                    let pendingSeek = null;
+                    audio.addEventListener("loadedmetadata", () => {
+                        if (pendingSeek !== null && Number.isFinite(pendingSeek)) {
+                            try { audio.currentTime = pendingSeek; } catch { /* loading */ }
+                            pendingSeek = null;
+                        }
+                    });
 
                     const updateButton = () => {
                         const playing = !audio.paused && !audio.ended;
@@ -297,7 +308,7 @@ app.registerExtension({
                     let dragging = false;
                     const seek = (event) => {
                         const bounds = canvas.getBoundingClientRect();
-                        const width = canvas.width / Math.min(2, window.devicePixelRatio || 1);
+                        const width = Math.max(1, bounds.width);
                         const left = 12;
                         const usable = Math.max(1, width - 24);
                         const coordinate = (event.clientX - bounds.left) * (width / Math.max(1, bounds.width));
@@ -308,6 +319,8 @@ app.registerExtension({
                         // currentTime also works when paused, without starting play.
                         if (audio.readyState >= 1 && Number.isFinite(seconds)) {
                             try { audio.currentTime = seconds; } catch { /* loading */ }
+                        } else {
+                            pendingSeek = seconds;
                         }
                         paint();
                     };

@@ -33,4 +33,4 @@ jobs:
         run: python -m compileall -q production_slate_latent.py production_slate_load_latent.py tests
 
       - name: Run latent save/load unit tests
-        run: python -m pytest tests/test_production_slate_latent.py tests/test_production_slate_load_latent.py -q
+        run: python -m pytest tests/test_production_slate_latent.py tests/test_production_slate_load_latent.py -q --confcutdir=tests

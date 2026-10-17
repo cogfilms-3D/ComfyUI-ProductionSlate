@@ -24,6 +24,47 @@ A short practical walkthrough showing how to replace the basic save node, organi
 
 ---
 
+## V4.5 development preview — Three shots, one continuous scene
+
+**Three separately generated AI shots. One continuous 15-second Christmas film.**
+
+This real-production demonstration shows how **saving the latent with each video take** enables subsequent latent-based shot continuation. The opening shot was generated using MiniMax H3. The next two shots were continued from saved H3 latents using the **[MiniMax H3 Extender](https://github.com/pmhaidn/ComfyUI-Minimax-H3-Extender)**. The shots were assembled in DaVinci Resolve Studio, with natural continuity of the character, room, ambient sound and background music.
+
+> **V4.5 is in development.** The currently released V4.4 remains unchanged.
+
+<!-- When the approved flow PNG is uploaded to images/production-slate-v45-latent-continuation-flow.png,
+     replace this Mermaid diagram with that image. Keep the screenshot asset out of the
+     released V4.4 branch until V4.5 is ready. -->
+
+```mermaid
+flowchart LR
+    A["SHOT 1<br/>Original MiniMax H3 generation<br/>Save VIDEO + LATENT 1"] 
+    B["SHOT 2<br/>H3 latent continuation<br/>Save VIDEO + LATENT 2"]
+    C["SHOT 3<br/>H3 latent continuation<br/>Save VIDEO + LATENT 3"]
+    D["15-second finished film<br/>Continuous picture + sound"]
+    A -->|"Use LATENT 1"| B
+    B -->|"Use LATENT 2"| C
+    C -->|"Edit three video shots"| D
+```
+
+**[▶ Watch the completed 15-second Christmas demonstration on YouTube](https://youtube.com/shorts/ke6t-xqV7oY)**
+
+In this example, **Production Slate V4.5 saved the videos and their corresponding latents** with matching production, scene, shot and take identities. The H3 Extender performed the actual continuation; Production Slate organised and saved the resulting assets.
+
+### V4.5 — Multiple latent save formats
+
+The V4.5 development build supports several save formats alongside their associated production assets:
+
+- **Standard ComfyUI latent** — `.latent`
+- **Nested audio/video latent** — `.avlatent`
+- **MiniMax H3 Motion Context** — `.safetensors`
+
+These formats serve different workflows and **are not interchangeable**. Compatible loaders and models are required.
+
+*This is a demonstration of a production result, not a step-by-step tutorial or a guarantee of seamless continuity in every generation.*
+
+---
+
 ## Why Production Slate?
 
 AI filmmaking quickly produces large numbers of images, videos, variations and takes.

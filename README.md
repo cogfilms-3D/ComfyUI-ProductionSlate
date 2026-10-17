@@ -34,6 +34,10 @@ This real-production demonstration shows how **saving the latent with each video
 
 ![Production Slate V4.5 — Three-shot latent continuation demonstration](images/production-slate-v45-latent-continuation-flow-v2.png)
 
+**Watch the 15-second film below (GitHub-hosted video):**
+
+https://github.com/user-attachments/assets/ef2886a8-f65e-4f3e-9f5e-754cf683a971
+
 **[▶ Watch the completed 15-second Christmas demonstration on YouTube](https://youtube.com/shorts/ke6t-xqV7oY)**
 
 In this example, **Production Slate V4.5 saved the videos and their corresponding latents** with matching production, scene, shot and take identities. The H3 Extender performed the actual continuation; Production Slate organised and saved the resulting assets.

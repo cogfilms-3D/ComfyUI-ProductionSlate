@@ -240,6 +240,9 @@ export function openProductionSlateFolderBrowser({
             if (closed || requestId !== requestSerial) return false;
 
             if (!response.ok || data.error) {
+                canSelectOutput = false;
+                canSelectProduction = false;
+                updateSelections();
                 status.textContent = data.error || "Unable to open this folder.";
                 return false;
             }
@@ -281,6 +284,9 @@ export function openProductionSlateFolderBrowser({
             return true;
         } catch (error) {
             if (!closed && requestId === requestSerial) {
+                canSelectOutput = false;
+                canSelectProduction = false;
+                updateSelections();
                 status.textContent = "Folder browsing failed: " + String(error);
             }
             return false;

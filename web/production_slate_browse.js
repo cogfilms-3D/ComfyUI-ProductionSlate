@@ -18,6 +18,7 @@
 // ============================================================
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { openProductionSlateFolderBrowser } from "./production_slate_folder_browser.js";
 
 const productionSlateMigratedNodeIds = new Set();
 
@@ -1407,30 +1408,37 @@ app.registerExtension({
             browseButton.textContent = "Browse…";
         });
 
+        // V4.5 folder-browser pilot: open the larger modal with the
+        // same backend permissions and the same authoritative widgets.
+        // The previous in-node panel is retained (inactive) until testing passes.
         browseButton.addEventListener("click", () => {
-            const isVisible =
-                browserPanel.style.display !== "none";
-
-            if (isVisible) {
-                browserPanel.style.display = "none";
-                browseButton.textContent = "Browse…";
-                return;
-            }
-
-            currentPath = "";
-
-            navigationHistory.length = 0;
-            updateNavigationButtons();
-
-            browserPanel.style.display = "block";
-            browseButton.textContent = "Close Browse";
-
-
-            if (currentPath === "") {
-                loadDrives();
-            } else {
-                loadDirectory(currentPath);
-            }
+            openProductionSlateFolderBrowser({
+                outputRoot,
+                productionName,
+                onSelectOutput: (selectedPath) => {
+                    outputRoot.value = selectedPath;
+                    if (outputRoot.inputEl) {
+                        outputRoot.inputEl.value = selectedPath;
+                    }
+                    outputRoot.callback?.call(outputRoot, selectedPath);
+                    refreshOutputLocationDisplay();
+                    node.setDirtyCanvas?.(true, true);
+                },
+                onSelectProduction: (parentPath, folderName) => {
+                    outputRoot.value = parentPath;
+                    productionName.value = folderName;
+                    if (outputRoot.inputEl) {
+                        outputRoot.inputEl.value = parentPath;
+                    }
+                    if (productionName.inputEl) {
+                        productionName.inputEl.value = folderName;
+                    }
+                    outputRoot.callback?.call(outputRoot, parentPath);
+                    productionName.callback?.call(productionName, folderName);
+                    refreshOutputLocationDisplay();
+                    node.setDirtyCanvas?.(true, true);
+                },
+            });
         });
 
         const browseWidget = node.addDOMWidget(

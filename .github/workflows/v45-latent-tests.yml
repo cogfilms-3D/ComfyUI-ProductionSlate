@@ -27,7 +27,7 @@ jobs:
         run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
 
       - name: Install offline-test dependencies
-        run: python -m pip install pytest safetensors aiohttp
+        run: python -m pip install pytest safetensors aiohttp numpy
 
       - name: Check test module syntax
         run: python -m compileall -q production_slate_latent.py production_slate_load_latent.py tests

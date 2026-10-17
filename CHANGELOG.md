@@ -4,9 +4,9 @@ All notable changes to Production Slate will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [4.5.0] — Release candidate (publication date pending)
+## [4.5.0] - 2026-10-17
 
-> The V4.5.0 implementation is ready for release review. **Do not treat this as a published GitHub Release until the v4.5.0 tag and release are created.** Live functional testing was performed on 2026-10-17.
+> Officially published on **17 October 2026**: [Production Slate V4.5.0](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases/tag/v4.5.0). Live functional testing was performed on 2026-10-17.
 
 ### Added
 

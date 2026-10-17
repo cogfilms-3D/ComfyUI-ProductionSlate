@@ -29,8 +29,14 @@ jobs:
       - name: Install offline-test dependencies
         run: python -m pip install pytest safetensors aiohttp numpy
 
-      - name: Check test module syntax
-        run: python -m compileall -q production_slate_latent.py production_slate_load_latent.py tests
+      - name: Check every Python source file for syntax errors
+        run: python -m compileall -q .
+
+      - name: Check all frontend JavaScript syntax
+        run: |
+          for source in web/*.js; do
+            node --check "$source"
+          done
 
       - name: Run latent save/load unit tests
         run: python -m pytest tests/test_production_slate_latent.py tests/test_production_slate_load_latent.py -q --confcutdir=tests

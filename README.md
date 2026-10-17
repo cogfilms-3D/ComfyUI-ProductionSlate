@@ -32,20 +32,7 @@ This real-production demonstration shows how **saving the latent with each video
 
 > **V4.5 is in development.** The currently released V4.4 remains unchanged.
 
-<!-- When the approved flow PNG is uploaded to images/production-slate-v45-latent-continuation-flow.png,
-     replace this Mermaid diagram with that image. Keep the screenshot asset out of the
-     released V4.4 branch until V4.5 is ready. -->
-
-```mermaid
-flowchart LR
-    A["SHOT 1<br/>Original MiniMax H3 generation<br/>Save VIDEO + LATENT 1"] 
-    B["SHOT 2<br/>H3 latent continuation<br/>Save VIDEO + LATENT 2"]
-    C["SHOT 3<br/>H3 latent continuation<br/>Save VIDEO + LATENT 3"]
-    D["15-second finished film<br/>Continuous picture + sound"]
-    A -->|"Use LATENT 1"| B
-    B -->|"Use LATENT 2"| C
-    C -->|"Edit three video shots"| D
-```
+![Production Slate V4.5 — Three-shot latent continuation demonstration](images/production-slate-v45-latent-continuation-flow-v2.png)
 
 **[▶ Watch the completed 15-second Christmas demonstration on YouTube](https://youtube.com/shorts/ke6t-xqV7oY)**
 

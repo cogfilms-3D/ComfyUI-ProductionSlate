@@ -1,10 +1,10 @@
-# 🎬 Production Slate V4.5 (development) for ComfyUI
+# 🎬 Production Slate V4.5 for ComfyUI
 
 **Spend less time finding your film. Spend more time making it.**
 
 ![Production Slate promotional artwork](images/production-slate-v4.4-header.png)
 
-> **Development build — not yet released.** The current public version remains **V4.4** on [`main`](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate). This README documents the tested V4.5 development branch, [`development/v4.5-load-latent`](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent).
+> **Version guidance:** This README describes **V4.5.0**. For a stable installation, use the [GitHub Releases page](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases) and choose **v4.5.0 once published**. Until that release exists, the tested [V4.5 development branch](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent) is a release candidate, not a public release.
 
 Production Slate is a production-output node for ComfyUI designed for AI filmmaking.
 
@@ -31,8 +31,6 @@ A short practical walkthrough showing how to replace the basic save node, organi
 **Three separately generated AI shots. One continuous 15-second Christmas film.**
 
 This real-production demonstration shows how **saving the latent with each video take** enables subsequent latent-based shot continuation. The opening shot was generated using MiniMax H3. The next two shots were continued from saved H3 latents using the **[MiniMax H3 Extender](https://github.com/pmhaidn/ComfyUI-Minimax-H3-Extender)**. The shots were assembled in DaVinci Resolve Studio, with natural continuity of the character, room, ambient sound and background music.
-
-**V4.5 remains in development; no new public release has been made.**
 
 ![Production Slate V4.5 — Three-shot latent continuation demonstration](images/production-slate-v45-latent-continuation-flow-v2.png)
 
@@ -199,8 +197,6 @@ The separate **🎬 Production Slate — Load Latent** node:
 
 The filename extension alone does **not** guarantee compatibility. The loader requires Production Slate's saved format metadata; arbitrary third-party safetensors/latent files may be rejected. It does not decode images/video, perform sampling or automatically start continuation.
 
-
-
 ---
 
 ### Automatic production code
@@ -275,23 +271,17 @@ VIDEO and paired workflows continue to use ComfyUI's normal video preview.
 
 ---
 
-## Installation — V4.5 development build
+## Installation — Production Slate V4.5
 
-The public repository's default `main` branch remains **V4.4**. To install the tested **V4.5 development build**:
+1. **Back up** your current `ComfyUI-ProductionSlate` folder and any customised workflows.
+2. Open the [Production Slate GitHub Releases page](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases). Once **v4.5.0** is published, download its **Source code (ZIP)** archive. Make sure the archive is **v4.5.0**, not the earlier v4.4.1.
+3. Extract the complete release into a folder named `ComfyUI-ProductionSlate` under your active ComfyUI installation's `custom_nodes/` directory. Keep **all** Python files and the `web/` directory together.
+4. Restart ComfyUI. Refresh its browser frontend (**Ctrl+Shift+R** if necessary).
+5. Search for **🎬 Production Slate V4.5** and **🎬 Production Slate — Load Latent**.
 
-1. **Back up** your working `ComfyUI-ProductionSlate` custom-node directory and any locally edited files.
-2. On GitHub, open the [V4.5 development branch](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent), choose **Code → Download ZIP**, and extract the **complete** branch contents. Alternatively, clone that branch using the command below.
-3. Install the complete `ComfyUI-ProductionSlate` directory under your active `ComfyUI/custom_nodes/` location. Do not mix new frontend files with an older backend or overwrite a working installation without a backup.
-4. Restart ComfyUI, then refresh the browser (use **Ctrl+Shift+R** if the old frontend is cached).
-5. Search in ComfyUI for **🎬 Production Slate V4.5** and **🎬 Production Slate — Load Latent**.
+**Before publication:** For release-candidate testing only, download the [complete V4.5 development branch](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent) instead of the release archive. The existing **v4.4.1** public release remains available until v4.5.0 is published. Do not copy only selected files over an older installation; replace the package as a whole after making a backup.
 
-```bash
-git clone --branch development/v4.5-load-latent https://github.com/cogfilms-3D/ComfyUI-ProductionSlate.git
-```
-
-Run that command **inside your active ComfyUI `custom_nodes` directory** when installing afresh; do not clone over an existing folder. Existing installations should be backed up and updated deliberately. The folder contains the saver, companion latent loader, backend modules and `web/` browser scripts.
-
-**Requirements:** A compatible ComfyUI installation with its normal Python dependencies. Development testing was performed on **ComfyUI 0.41.3 (Nodes 2)**. Production Slate's browser does **not** require VideoHelperSuite. No special audio generator, latent model or H3 Extender is required to install Production Slate itself; specialised **downstream** workflows may require their own nodes/models.
+**Requirements:** A compatible ComfyUI installation with its normal Python dependencies. V4.5 was tested on **ComfyUI 0.41.3 (Nodes 2)**. Production Slate's browser does **not** require VideoHelperSuite. Specialised downstream latent decoding/continuation may require additional model-specific nodes and models; they are not required just to install Production Slate.
 
 ### Saver inputs
 
@@ -315,8 +305,6 @@ At least one media input (VIDEO, IMAGE, AUDIO or LATENT) must be connected.
 
 - **latent_path** — choose a previously saved Production Slate V4.5 latent using **Browse latent file…**.
 - **LATENT output** — reconstructed saved payload for compatible downstream nodes.
-
-
 
 ---
 
@@ -342,20 +330,16 @@ AI_Films
 
 In this example, the H3 latent sits beside the corresponding video take; the audio `.json` file is its workflow/production metadata sidecar.
 
-
-
 ---
 
 ## Compatibility
 
-- **V4.5 development testing:** ComfyUI **0.41.3**, using the Nodes 2 interface.
-- The previously released **V4.4** was field-tested across ComfyUI 0.37.x–0.38.2.
+- **V4.5 testing:** ComfyUI **0.41.3**, using the Nodes 2 interface.
+- Earlier **V4.4.x** releases were field-tested across ComfyUI 0.37.x–0.38.2.
 - Earlier Production Slate IMAGE 004-C and VIDEO 004-C workflows retain the existing migration support. Always retain backups of important workflows when changing versions.
 - The Production Slate browser requires **no VideoHelperSuite** runtime dependency.
 - The new loader has been tested with Production Slate-saved standard, LTX 2.5 AV, and H3 Motion Context latents; compatibility with arbitrary latent files and third-party continuation workflows is **not guaranteed**.
 - Audio playback depends on format support in the user's browser. Source AUDIO pass-through is unmodified; MP3 encoding is lossy.
-
-
 
 ---
 
@@ -378,21 +362,17 @@ The experience of using Production Slate throughout a complete production has al
 
 ---
 
-## Future ideas (not included in this development build)
+## Future ideas (not included in V4.5)
 
 Possible later work includes simpler one-click restoration of workflows from audio sidecars, additional production metadata/lineage, and optional support for attaching user-supplied score or metadata files. These are **not current V4.5 features** and have no committed release schedule.
 
 The completed audio and latent feature requests were developed from community feedback: [Issue #2 — LATENT](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/issues/2) and [Issue #3 — AUDIO](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/issues/3).
 
-
-
 ---
 
 ## Version
 
-**Production Slate V4.5 — tested development build.**
-
-**V4.4 remains the latest public release** until the development branch is reviewed and merged.
+**Production Slate V4.5.0.** For download and publication status, see [GitHub Releases](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases).
 
 ---
 

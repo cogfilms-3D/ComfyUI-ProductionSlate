@@ -215,9 +215,23 @@ app.registerExtension({
         node.title = "🎬 Production Slate — Load Latent";
         node.color = "#352447";
         node.bgcolor = "#241A30";
-        node.addWidget(
-            "button", "Browse latent file…", "", () => openLatentBrowser(node),
-            {serialize: false}
+        // Match the main Production Slate saver's light-grey Browse button.
+        // A DOM widget also keeps its appearance distinct from editable fields.
+        const browseButton = document.createElement("button");
+        browseButton.type = "button";
+        browseButton.textContent = "Browse latent file…";
+        browseButton.style.width = "100%";
+        browseButton.style.height = "30px";
+        browseButton.style.minHeight = "30px";
+        browseButton.style.maxHeight = "30px";
+        browseButton.style.cursor = "pointer";
+        browseButton.addEventListener("click", () => openLatentBrowser(node));
+
+        node.addDOMWidget(
+            "production_slate_latent_browse",
+            "custom",
+            browseButton,
+            {serialize: false, hideOnZoom: false}
         );
         node.setSize?.([Math.max(node.size[0], 370), Math.max(node.size[1], 122)]);
     },

@@ -3,7 +3,11 @@ name: V4.5 Latent Unit Tests
 on:
   push:
     branches:
+      - main
       - development/v4.5-load-latent
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -15,7 +19,7 @@ jobs:
     timeout-minutes: 25
 
     steps:
-      - name: Checkout development branch
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python

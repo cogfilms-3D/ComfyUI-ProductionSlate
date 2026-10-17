@@ -1,0 +1,36 @@
+name: V4.5 Latent Unit Tests
+
+on:
+  push:
+    branches:
+      - development/v4.5-load-latent
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latent-round-trip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout development branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CPU-only PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+
+      - name: Install offline-test dependencies
+        run: python -m pip install pytest safetensors aiohttp
+
+      - name: Check test module syntax
+        run: python -m compileall -q production_slate_latent.py production_slate_load_latent.py tests
+
+      - name: Run latent save/load unit tests
+        run: python -m pytest tests/test_production_slate_latent.py tests/test_production_slate_load_latent.py -q

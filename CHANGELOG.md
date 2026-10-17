@@ -4,9 +4,9 @@ All notable changes to Production Slate will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] — V4.5 development (tested 2026-10-17)
+## [4.5.0] — Release candidate (publication date pending)
 
-> This section describes a **tested development branch**, not a published public release. V4.4 remains on `main`.
+> The V4.5.0 implementation is ready for release review. **Do not treat this as a published GitHub Release until the v4.5.0 tag and release are created.** Live functional testing was performed on 2026-10-17.
 
 ### Added
 
@@ -38,6 +38,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - New pop-up Production Slate browser passed: open, both folder-selection modes, and a LATENT save with correct destination and take numbering.
 
 **Limitations:** Three-format round trips are not a guarantee of downstream generative continuation in every workflow. The companion loader expects Production Slate V4.5 metadata, not arbitrary files sharing an extension. Audio workflow recovery from a sidecar currently requires manual extraction of `extra_pnginfo.workflow`. The live graph tests were manual. Automated latent-save and Load Latent unit tests also passed: **8/8** using Python 3.12 and CPU-only PyTorch on GitHub Actions ([successful run](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/actions/runs/39066475621)).
+
+---
+
+## [4.4.1] - 2026-10-06
+
+### Fixed
+
+- Corrected a workflow-switching issue that could cause the unified Production Slate node to display an older V4.3 identity after returning to a workflow.
+- Preserved the execution monitor's active PROCESSING / GENERATING / SAVING status, progress and elapsed time across ComfyUI workflow switches.
+- Preserved COMPLETE status and final elapsed time when returning to a finished workflow.
+- Reset the execution monitor correctly when a new generation starts.
+
+### Notes
+
+Maintenance update to V4.4. No changes to the production hierarchy, filenames, Browse selection, workflow migration or normal image/video saving.
+
+[Published V4.4.1 release notes](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases/tag/v4.4.1).
 
 ---
 

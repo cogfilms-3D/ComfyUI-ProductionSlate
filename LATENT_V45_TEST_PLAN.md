@@ -66,7 +66,7 @@ Back up the existing custom-node folder before replacing files. Restart ComfyUI 
 ## Test separation: what we have *not* established
 
 - A successful H3 or LTX **round-trip save** does not by itself establish every model-specific continuation workflow. Existing H3 and LTX model-specific loaders have been checked separately, but a fresh full continuation generation using the new Production Slate Load Latent output is **not part of this latest acceptance sequence**.
-- We have **not recorded** a completed automated test run for `tests/test_production_slate_latent.py` or `tests/test_production_slate_load_latent.py` in this session.
+- **Automated tests passed:** both `tests/test_production_slate_latent.py` and `tests/test_production_slate_load_latent.py` completed successfully (8/8 tests) on GitHub Actions, Python 3.12 with CPU-only PyTorch ([successful run](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/actions/runs/39066475621)). This is separate from the live ComfyUI graph tests.
 - Cross-platform, multi-install and older ComfyUI compatibility for V4.5 remain unverified.
 - Arbitrary third-party `.latent`/`.avlatent`/`.safetensors` files are not promised to work with our companion loader.
 - No claim of atomic all-or-nothing saving across multiple media types if a drive or external encoder fails during a run.

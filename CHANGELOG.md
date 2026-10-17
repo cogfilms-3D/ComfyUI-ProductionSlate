@@ -37,7 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - New Load Latent companion passed: installation, browser selection, three format **load → save** round trips (SC011→SC012, SC010→SC013, SC014→SC015), and workflow persistence.
 - New pop-up Production Slate browser passed: open, both folder-selection modes, and a LATENT save with correct destination and take numbering.
 
-**Limitations:** Three-format round trips are not a guarantee of downstream generative continuation in every workflow. The companion loader expects Production Slate V4.5 metadata, not arbitrary files sharing an extension. Audio workflow recovery from a sidecar currently requires manual extraction of `extra_pnginfo.workflow`. These are manual live tests; automated tests have not yet been reported as run.
+**Limitations:** Three-format round trips are not a guarantee of downstream generative continuation in every workflow. The companion loader expects Production Slate V4.5 metadata, not arbitrary files sharing an extension. Audio workflow recovery from a sidecar currently requires manual extraction of `extra_pnginfo.workflow`. The live graph tests were manual. Automated latent-save and Load Latent unit tests also passed: **8/8** using Python 3.12 and CPU-only PyTorch on GitHub Actions ([successful run](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/actions/runs/39066475621)).
 
 ---
 

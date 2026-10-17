@@ -1,112 +1,84 @@
-# Production Slate V4.5 — LATENT Saving (experimental)
+# Production Slate V4.5 — Latent saving and loading test record
 
-This document applies **only to development/v4.5-latent-save**.
-The audio-preview checkpoint and the released main branch are not modified.
+**Status:** Live functional tests passed on **ComfyUI 0.41.3** (17 October 2026). V4.5 is **not yet a public release**.
 
-## Scope
+**Working branch:** [development/v4.5-load-latent](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent)
 
-- One optional LATENT input; no new output sockets.
-- One **Latent Format** dropdown. Default: **Auto Detect**.
-- No latent denoising, conversion, refinement, scaling or decoding.
-- Saves beside a matching IMAGE (.png), VIDEO (.mp4), or AUDIO; **no Latents folder**.
-- VIDEO is the primary asset when both IMAGE and VIDEO are supplied.
-- Without any media input, nested/video-shaped LATENT goes to **Video**, image-shaped LATENT goes to **Images**.
-- Numbers are selected to avoid existing LATENT and primary media takes. With AUDIO connected, the existing shared AUDIO numbering rule is retained.
-- Stores workflow/prompt metadata when supplied by ComfyUI, plus structured auxiliary fields.
-- Won't overwrite an existing LATENT file, and rejects unsupported formats/extra fields **before** attempting normal media saves.
+**Frozen tested checkpoint:** [checkpoint/v4.5-load-latent-browser-20261017](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/checkpoint/v4.5-load-latent-browser-20261017)
 
-## Format choices
+**Public release:** V4.4 on main, untouched during these tests.
 
-| Dropdown option | Input requirement | Extension | Compatible existing loader |
+## Scope and safeguards
+
+- Unified Production Slate saver has optional IMAGE, VIDEO, AUDIO and LATENT inputs.
+- The LATENT socket is **input only** on the saver; the separate **Production Slate — Load Latent** node has a LATENT output.
+- Formats: standard \`.latent\`, nested AV \`.avlatent\`, explicitly selected H3 Motion Context \`.safetensors\`.
+- Auto Detect identifies single vs nested samples; it cannot infer the source model and **does not automatically select H3**.
+- Save latents **beside the associated primary media take**, not in a separate Latents folder. With LATENT-only input, select the existing Images or Video folder based on latent structure; AUDIO-only pairing uses the Audio folder.
+- Match filename stems/take numbers with related production assets, maintaining VIDEO authority over paired REF images.
+- Preserve supported auxiliary fields in namespaced metadata for our own loader to recover.
+- Reject unsupported latent payloads before normal media saving; do not overwrite existing numbered takes.
+- The new Load Latent browser must accept local paths on other drives without moving assets to ComfyUI/input.
+- Keep existing image/video/audio savers and workflow migration intact. The existing Production Slate folder browse backend is unchanged.
+
+## Format guidance
+
+| Saver selection | Saved extension | Tested example | Recovery |
 | --- | --- | --- | --- |
-| Auto Detect | Torch Tensor or supported nested tensor | .latent for a Tensor; .avlatent for nested | Core Load Latent / AV Latent IO respectively |
-| ComfyUI Standard (.latent) | Single Tensor | .latent | Core Load Latent |
-| AV Nested (.avlatent) | Single or nested tensor | .avlatent | AV Latent IO's Load AV Latent |
-| H3 Motion Context (.safetensors) | Exactly two streams (video 5-D, audio 4-D) | .safetensors | MiniMax H3 Load AV Latent (H3 Extender) |
+| Auto Detect on a single tensor | \`.latent\` | Empty Latent Image / standard image latent | Production Slate Load Latent; core Load Latent for compatible samples |
+| Auto Detect on nested AV | \`.avlatent\` | LTX 2.5 finished sampler latent | Production Slate Load Latent; compatible AV Latent IO |
+| H3 Motion Context (explicit) | \`.safetensors\` | MiniMax H3 finished two-stream sampler latent | Production Slate Load Latent; compatible H3 Extender loading node |
 
-**Auto Detect cannot identify the originating model from the socket.**
-Select H3 Motion Context manually if you specifically need that existing H3 loader.
+**Only Production Slate V4.5 saved files containing our format metadata are guaranteed to be recognised by the new companion loader.** Other files with the same suffix may not load. Third-party loaders can recover their recognised main tensors but may ignore auxiliary metadata.
 
-**Auxiliary data:** Production Slate stores supported extra tensor and JSON-like
-fields under the \`production_slate_latent_v1\` metadata convention. The helper
-\`load_production_latent(path)\` recovers the full saved latent dictionary.
-Third-party loaders may still ignore these auxiliary fields even though they are
-present in the saved file. A future Load Production Latent node will expose this.
+## Live tests — confirmed passed
 
-## Installing the development build
+| Test | Source | Destination / result |
+| --- | --- | --- |
+| Standard latent save and load | Earlier Krea 2 image latent | Saved and recovered via standard ComfyUI loader (prior saver test) |
+| LTX 2.5 AV save and recovery | Finished sampler output **before Separate AV Latent** | \`.avlatent\` loaded using AV Latent IO |
+| MiniMax H3 save and recovery | Finished H3 sampler two-stream latent | SC011 \`.safetensors\` loaded using H3 AV Latent loader; images/audio checked |
+| New Load Latent registration | Installed Python + JavaScript + init registration | Node appeared without ComfyUI startup errors |
+| New loader browse and selection | SC011/Video | Browser navigated and selected the file path |
+| **H3 load → save round trip** | SC011 \`.safetensors\` | **SC012/Video**, passed |
+| **AV load → save round trip** | SC010 \`.avlatent\` | **SC013/Video**, passed |
+| Standard latent save | Empty Latent Image | **SC014/Images**, passed |
+| **Standard load → save round trip** | SC014 \`.latent\` | **SC015/Images**, passed |
+| Workflow reload persistence | Saved Load Latent workflow | Latent path/selection retained after reopen |
+| Main browser modal opens | New V4.5 folder browser | Passed |
+| Select Production Folder | Existing production location | Output Location and Production / Folder populated correctly |
+| Select Output Location | Existing output location | Root changed, Production / Folder unchanged |
+| Main browser save regression | Empty Latent Image through saver | Correct folder hierarchy and next available take |
 
-Back up your current working Production Slate folder, then copy these files
-from the development branch into that folder:
+The user additionally approved matching **light-grey Browse buttons** on both nodes, and tested the new larger folder browser with Production Slate V4.5.
 
-1. \`ProductionSlateV4_3.py\` (modified)
-2. \`production_slate_latent.py\` (**new**, place beside the Python node)
-3. \`web/production_slate_browse.js\` (modified; label and migration only)
+## Installation required for this tested combination
 
-Audio modules and \`web/production_slate_waveform.js\` are unchanged.
+Install the **complete branch**, including:
 
-Restart ComfyUI Desktop for the Python changes and hard refresh with
-**Ctrl + Shift + R** to load the new JavaScript.
+- \`ProductionSlateV4_3.py\`, \`production_slate_audio.py\`, \`production_slate_latent.py\`, and \`production_slate_load_latent.py\`.
+- \`__init__.py\` registering both the unified saver and Load Latent companion.
+- The whole \`web/\` directory, especially \`production_slate_browse.js\`, \`production_slate_folder_browser.js\`, \`production_slate_load_latent.js\`, and the waveform/preview frontend.
+- Unchanged legacy classes required for compatibility/migration.
 
-## Incremental acceptance tests — ComfyUI 0.40.0
+Back up the existing custom-node folder before replacing files. Restart ComfyUI and hard-refresh its UI if needed. For complete installation guidance, see the development [README](README.md).
 
-**A. Regression first (no LATENT connected)**
+## Test separation: what we have *not* established
 
-Open a known working workflow and confirm AUDIO-only, IMAGE-only and
-VIDEO+AUDIO continue to save and preview as before. Do not repeat expensive
-generations purely for these checks.
+- A successful H3 or LTX **round-trip save** does not by itself establish every model-specific continuation workflow. Existing H3 and LTX model-specific loaders have been checked separately, but a fresh full continuation generation using the new Production Slate Load Latent output is **not part of this latest acceptance sequence**.
+- We have **not recorded** a completed automated test run for \`tests/test_production_slate_latent.py\` or \`tests/test_production_slate_load_latent.py\` in this session.
+- Cross-platform, multi-install and older ComfyUI compatibility for V4.5 remain unverified.
+- Arbitrary third-party \`.latent\`/\`.avlatent\`/\`.safetensors\` files are not promised to work with our companion loader.
+- No claim of atomic all-or-nothing saving across multiple media types if a drive or external encoder fails during a run.
 
-**B. LATENT-only / standard**
+## Offline checks to perform before public release
 
-Use \`Empty Latent Image\` (or a short ordinary image sampler), connect its
-LATENT to Production Slate, select Auto Detect, and queue. Expected:
-
-\`<production>/SC001/Images/<CODE>_SC001_SH001_<date>_001.latent\`
-
-No video/audio preview should be generated for LATENT-only. A file should be
-created and a new queued take must not overwrite the first.
-
-**C. Genuine H3 AV**
-
-Branch the *completed* SamplerCustomAdvanced \`output\` to Production Slate
-LATENT, and explicitly select \`H3 Motion Context (.safetensors)\`.
-Expect a \`.safetensors\` file in SCxxx/Video. Test the path with your existing
-MiniMax H3 Load AV Latent node; its clip_index=0 when specifying the exact path.
-
-**D. Genuine LTX 2.5 AV**
-
-Branch SamplerCustomAdvanced \`output\` **before** Separate AV Latent
-to Production Slate LATENT. Use Auto Detect, expecting a \`.avlatent\` file in
-SCxxx/Video. Verify its main tensors through AV Latent IO Load AV Latent.
-
-**E. Matched media**
-
-With VIDEO and LATENT both connected, confirm matching filename stems and
-take numbers. With VIDEO+IMAGE, the companion REF image uses the same take
-number in Images but does not show a second image preview.
-
-**F. Unsupported values**
-
-Select Standard (.latent) with a nested H3/LTX input. Expected: a clear
-incompatibility error **before** saving the media. Existing production files
-must remain untouched.
-
-## Automated offline checks
-
-From the repository root, in an environment with \`pytest\`, \`torch\` and
-\`safetensors\` (no server or GPU required):
+From the repo root, with Python, \`torch\`, \`safetensors\` and \`pytest\` installed:
 
 \`\`\`sh
-python -m pytest tests/test_production_slate_latent.py -q
+python -m pytest tests/test_production_slate_latent.py tests/test_production_slate_load_latent.py -q
 \`\`\`
 
-These test the saver/reader in isolation. **They do not substitute for the
-live ComfyUI 0.40.0 tests**, especially for plugin/graph and preview behaviour.
+An automated unit pass will complement, **not replace**, the live ComfyUI graph tests.
 
-## Not in this first implementation
-
-- No GUI Load Production Latent companion node yet.
-- No modification or processing of the incoming LATENT.
-- No claim to support arbitrary unfamiliar Python object graphs.
-- No promise that third-party loaders will restore custom auxiliary metadata.
-- No guarantee that writes to multiple types of media are transactionally
-  all-or-nothing if an external disk or encoder fails part-way through.
+**Release gate:** Review README/CHANGELOG, run automated tests where available, decide whether additional real-world decoder/continuation and workflow-migration regressions are needed, then review the exact V4.5 code diff before merging into \`main\`.

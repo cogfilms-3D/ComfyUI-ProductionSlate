@@ -4,7 +4,7 @@
 
 ![Production Slate promotional artwork](images/production-slate-v4.4-header.png)
 
-> **Version guidance:** This README describes **V4.5.0**. For a stable installation, use the [GitHub Releases page](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases) and choose **v4.5.0 once published**. Until that release exists, the tested [V4.5 development branch](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent) is a release candidate, not a public release.
+> **Version guidance:** This README describes **V4.5.0**, officially published on **17 October 2026**. For a stable installation, use the [Production Slate V4.5.0 GitHub release](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases/tag/v4.5.0) rather than an in-progress development branch.
 
 Production Slate is a production-output node for ComfyUI designed for AI filmmaking.
 
@@ -274,12 +274,12 @@ VIDEO and paired workflows continue to use ComfyUI's normal video preview.
 ## Installation — Production Slate V4.5
 
 1. **Back up** your current `ComfyUI-ProductionSlate` folder and any customised workflows.
-2. Open the [Production Slate GitHub Releases page](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases). Once **v4.5.0** is published, download its **Source code (ZIP)** archive. Make sure the archive is **v4.5.0**, not the earlier v4.4.1.
-3. Extract the complete release into a folder named `ComfyUI-ProductionSlate` under your active ComfyUI installation's `custom_nodes/` directory. Keep **all** Python files and the `web/` directory together.
+2. Open the [Production Slate V4.5.0 release](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases/tag/v4.5.0) and download its **Source code (ZIP)** archive. Confirm the release tag is **v4.5.0**, not the earlier v4.4.1.
+3. Extract the ZIP, rename the extracted top-level folder to `ComfyUI-ProductionSlate`, and place it under your **active** ComfyUI installation's `custom_nodes/` directory. Check that `__init__.py`, the other Python files and `web/` are directly inside `custom_nodes/ComfyUI-ProductionSlate/` (not inside a second nested folder).
 4. Restart ComfyUI. Refresh its browser frontend (**Ctrl+Shift+R** if necessary).
 5. Search for **🎬 Production Slate V4.5** and **🎬 Production Slate — Load Latent**.
 
-**Before publication:** For release-candidate testing only, download the [complete V4.5 development branch](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent) instead of the release archive. The existing **v4.4.1** public release remains available until v4.5.0 is published. Do not copy only selected files over an older installation; replace the package as a whole after making a backup.
+**Upgrading from an earlier version:** After backing up the previous `ComfyUI-ProductionSlate` folder, replace the package as a whole; do **not** merge selected V4.5 files into an older installation. The [v4.4.1 release](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases/tag/v4.4.1) remains available if you need to roll back.
 
 **Requirements:** A compatible ComfyUI installation with its normal Python dependencies. V4.5 was tested on **ComfyUI 0.41.3 (Nodes 2)**. Production Slate's browser does **not** require VideoHelperSuite. Specialised downstream latent decoding/continuation may require additional model-specific nodes and models; they are not required just to install Production Slate.
 
@@ -372,7 +372,7 @@ The completed audio and latent feature requests were developed from community fe
 
 ## Version
 
-**Production Slate V4.5.0.** For download and publication status, see [GitHub Releases](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases).
+**Production Slate V4.5.0 — released 17 October 2026.** Download from the [official V4.5.0 release](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases/tag/v4.5.0).
 
 ---
 

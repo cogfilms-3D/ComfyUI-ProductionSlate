@@ -1,16 +1,18 @@
-# 🎬 Production Slate V4.4 for ComfyUI
+# 🎬 Production Slate V4.5 for ComfyUI
 
 **Spend less time finding your film. Spend more time making it.**
 
-![Production Slate V4.4 for ComfyUI](images/production-slate-v4.4-header.png)
+![Production Slate promotional artwork](images/production-slate-v4.4-header.png)
+
+> **Version guidance:** This README describes **V4.5.0**. For a stable installation, use the [GitHub Releases page](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases) and choose **v4.5.0 once published**. Until that release exists, the tested [V4.5 development branch](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent) is a release candidate, not a public release.
 
 Production Slate is a production-output node for ComfyUI designed for AI filmmaking.
 
-It automatically organises generated images and videos into a clear production structure using:
+It organises generated images, videos, audio and supported latents into a clear production structure using:
 
 **Production → Scene → Shot → Take**
 
-Production Slate is designed to sit at the end of an image or video workflow, so it can be used with virtually any AI model or generation workflow that produces a compatible ComfyUI IMAGE or VIDEO output.
+The unified saver sits near the end of a ComfyUI workflow and accepts compatible **IMAGE**, **VIDEO**, **AUDIO** and **LATENT** inputs. The separate **Production Slate — Load Latent** companion node reads saved Production Slate latents from their existing locations.
 
 ---
 
@@ -21,6 +23,38 @@ Production Slate is designed to sit at the end of an image or video workflow, so
 A short practical walkthrough showing how to replace the basic save node, organise a production by Scene and Shot, use automatic Take numbering, follow render progress, and find the resulting image and video files.
 
 ▶️ **Watch on YouTube:** https://youtu.be/8nfZ-741PJ4
+
+---
+
+## V4.5 demonstration — Three shots, one continuous scene
+
+**Three separately generated AI shots. One continuous 15-second Christmas film.**
+
+This real-production demonstration shows how **saving the latent with each video take** enables subsequent latent-based shot continuation. The opening shot was generated using MiniMax H3. The next two shots were continued from saved H3 latents using the **[MiniMax H3 Extender](https://github.com/pmhaidn/ComfyUI-Minimax-H3-Extender)**. The shots were assembled in DaVinci Resolve Studio, with natural continuity of the character, room, ambient sound and background music.
+
+![Production Slate V4.5 — Three-shot latent continuation demonstration](images/production-slate-v45-latent-continuation-flow-v2.png)
+
+**Watch the 15-second film below (GitHub-hosted video):**
+
+https://github.com/user-attachments/assets/ef2886a8-f65e-4f3e-9f5e-754cf683a971
+
+**[▶ Watch the completed 15-second Christmas demonstration on YouTube](https://youtube.com/shorts/ke6t-xqV7oY)**
+
+In this example, **Production Slate V4.5 saved the videos and their corresponding latents** with matching production, scene, shot and take identities. The H3 Extender performed the actual continuation; Production Slate organised and saved the resulting assets.
+
+### V4.5 — Supported latent save formats
+
+| Format selection | Extension | Typical use |
+| --- | --- | --- |
+| **Auto Detect** (single tensor) | `.latent` | Standard ComfyUI image latents |
+| **Auto Detect** (nested tensor) | `.avlatent` | Nested audio/video latents, including tested LTX 2.5 output |
+| **H3 Motion Context** (explicit selection) | `.safetensors` | Tested MiniMax H3 video/audio motion-context pairs |
+
+The formats are **not interchangeable**. Auto Detect checks latent data shape, not the source model: **select H3 Motion Context explicitly** when a compatible H3 Extender file is required. The saver preserves supported auxiliary latent fields for recovery by the Production Slate loader; third-party loaders may not restore these fields.
+
+**Tested live:** standard ComfyUI `.latent`, LTX 2.5 `.avlatent`, and MiniMax H3 `.safetensors` were each saved, loaded, and saved again. These tests confirm round trips, **not** every downstream continuation or decoding workflow.
+
+*This film is a production demonstration, not a promise of seamless continuation in every model or generation.*
 
 ---
 
@@ -42,15 +76,15 @@ Production Slate applies a simple film-production style structure automatically.
 
 ## Features
 
-### Unified IMAGE and VIDEO output
+### Unified IMAGE, VIDEO, AUDIO and LATENT saving
 
-Production Slate V4.4 accepts:
+The **🎬 Production Slate V4.5** saver accepts optional IMAGE, VIDEO, AUDIO and LATENT inputs, individually or in supported combinations. Connect **at least one**.
 
-- IMAGE
-- VIDEO
-- IMAGE + VIDEO together
+- Existing IMAGE-only, VIDEO-only and paired VIDEO + IMAGE functions are retained.
+- AUDIO-only saves are supported, as is AUDIO saving alongside images or video.
+- Supported LATENT files can be saved with matching production and take identities, or as LATENT-only takes.
 
-The same node can therefore be used throughout an AI filmmaking workflow.
+VIDEO and IMAGE outputs pass through as before; the new AUDIO output passes the original audio onward without alteration. **There is no LATENT output on the saver**; use the separate loader for a LATENT output.
 
 ---
 
@@ -117,20 +151,51 @@ The companion REF image can be useful for:
 
 ---
 
-### Production browser
+### Larger Production folder browser
 
-Production Slate includes its own folder browser.
+The unified saver now opens a separate, larger folder-selection dialog, based on the tested Load Latent browser. It includes:
 
-You can:
+- Drive buttons and a browsable **DEFAULT** ComfyUI output location.
+- Editable folder path, **Go**, **Back** and **Up** navigation.
+- Distinct **Select Output Location** and **Select Production Folder** actions.
+- Visible but unavailable/unselectable non-writable folders, where reported by the backend.
+- A lighter-grey **Browse** button, consistent across the Production Slate node family.
 
-- browse available drives
-- browse the default ComfyUI output location
-- move through folders using Back and Up
-- select an Output Location
-- select an existing Production folder
-- identify unavailable or non-writable folders
+**Select Output Location** changes the destination root without replacing Production / Folder. **Select Production Folder** sets both its parent Output Location and its folder name, preserving automatic/manual Code behaviour.
 
-The browser is built into Production Slate and does not depend on VideoHelperSuite.
+The browser is independent of VideoHelperSuite.
+
+---
+
+### Audio saving and preview
+
+An optional AUDIO input saves to `Production / SCxxx / Audio` using the usual shot and take naming.
+
+| Audio format | Save choice |
+| --- | --- |
+| FLAC | Lossless |
+| WAV | PCM |
+| MP3 | 320 kbps |
+
+The saver includes an in-node waveform with duration information, a playback control and scrubbing, plus AUDIO pass-through. It can save an audio batch as consecutive takes. When AUDIO accompanies image/video, the file identities are coordinated where applicable.
+
+Each audio file receives a **same-stem `.json` sidecar** containing production details and the workflow/prompt metadata available from ComfyUI. This is **not** an embedded ComfyUI workflow in the audio file and is **not** a Plenio release record. To recover a ComfyUI workflow, extract `extra_pnginfo.workflow` from the sidecar, save that object as a separate `.json` file, then use ComfyUI's **File → Open**. Recovery depends on the metadata originally supplied.
+
+---
+
+### LATENT saving and the Load Latent companion
+
+The saver's optional LATENT input stores supported latents **alongside the associated primary asset**, with matching filename stem/take; it does **not** create a separate Latents folder. A LATENT-only save goes to **Images** for standard image-shaped samples or **Video** for nested/video-shaped samples. A latent associated with AUDIO-only output is stored in the **Audio** folder.
+
+The saver's **Latent Format** menu provides **Auto Detect**, **ComfyUI Standard (.latent)**, **AV Nested (.avlatent)** and **H3 Motion Context (.safetensors)**.
+
+The separate **🎬 Production Slate — Load Latent** node:
+
+1. Opens its own large browser to select a saved file on a local drive, without copying it to `ComfyUI/input`.
+2. Loads supported **Production Slate V4.5** `.latent`, `.avlatent` and `.safetensors` files.
+3. Exposes a **LATENT** output for downstream nodes.
+
+The filename extension alone does **not** guarantee compatibility. The loader requires Production Slate's saved format metadata; arbitrary third-party safetensors/latent files may be rejected. It does not decode images/video, perform sampling or automatically start continuation.
 
 ---
 
@@ -206,55 +271,40 @@ VIDEO and paired workflows continue to use ComfyUI's normal video preview.
 
 ---
 
-## Installation
+## Installation — Production Slate V4.5
 
-### Manual installation
+1. **Back up** your current `ComfyUI-ProductionSlate` folder and any customised workflows.
+2. Open the [Production Slate GitHub Releases page](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases). Once **v4.5.0** is published, download its **Source code (ZIP)** archive. Make sure the archive is **v4.5.0**, not the earlier v4.4.1.
+3. Extract the complete release into a folder named `ComfyUI-ProductionSlate` under your active ComfyUI installation's `custom_nodes/` directory. Keep **all** Python files and the `web/` directory together.
+4. Restart ComfyUI. Refresh its browser frontend (**Ctrl+Shift+R** if necessary).
+5. Search for **🎬 Production Slate V4.5** and **🎬 Production Slate — Load Latent**.
 
-1. Download or clone this repository.
-2. Place the folder `ComfyUI-ProductionSlate` inside `ComfyUI/custom_nodes/`.
-3. Restart ComfyUI.
-4. Search for `Production Slate` in the ComfyUI node menu.
+**Before publication:** For release-candidate testing only, download the [complete V4.5 development branch](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/tree/development/v4.5-load-latent) instead of the release archive. The existing **v4.4.1** public release remains available until v4.5.0 is published. Do not copy only selected files over an older installation; replace the package as a whole after making a backup.
 
-The node should appear as:
+**Requirements:** A compatible ComfyUI installation with its normal Python dependencies. V4.5 was tested on **ComfyUI 0.41.3 (Nodes 2)**. Production Slate's browser does **not** require VideoHelperSuite. Specialised downstream latent decoding/continuation may require additional model-specific nodes and models; they are not required just to install Production Slate.
 
-```text
-🎬 Production Slate V4.4
-```
+### Saver inputs
 
----
+| Input or setting | Function |
+| --- | --- |
+| VIDEO | Optional completed ComfyUI video |
+| IMAGE | Optional image or reference frame |
+| AUDIO | Optional ComfyUI audio; choose FLAC, WAV or MP3 |
+| LATENT | Optional supported latent payload; choose a format or Auto Detect |
+| Output Location; Production / Folder | Destination and production identity |
+| Code; Scene; Shot; Shot Variation; Slate Notes | File identity and production notes |
 
-## Inputs
+At least one media input (VIDEO, IMAGE, AUDIO or LATENT) must be connected.
 
-### VIDEO
+### Saver outputs
 
-Optional VIDEO input.
+- **VIDEO**, **IMAGE** and **AUDIO** — original input media passed through when connected.
+- **save_path** — the primary saved output path.
 
-Connect the completed video from your generation workflow.
+### Companion loader
 
-### IMAGE
-
-Optional IMAGE input.
-
-This can be:
-
-- the primary generated image
-- a reference image associated with a video
-- a continuation frame
-- another production still
-
-At least one of VIDEO or IMAGE must be connected.
-
----
-
-## Outputs
-
-Production Slate provides:
-
-- VIDEO
-- IMAGE
-- save_path
-
-The media inputs are passed through, allowing Production Slate to remain part of a larger workflow if required.
+- **latent_path** — choose a previously saved Production Slate V4.5 latent using **Browse latent file…**.
+- **LATENT output** — reconstructed saved payload for compatible downstream nodes.
 
 ---
 
@@ -265,27 +315,31 @@ AI_Films
 └── The King Returns
     ├── SC001
     │   ├── Images
-    │   │   ├── KR_SC001_SH001_261004_001.png
-    │   │   └── KR_SC001_SH002_261004_REF_001.png
-    │   └── Video
-    │       ├── KR_SC001_SH001_261004_001.mp4
-    │       └── KR_SC001_SH002_261004_001.mp4
+    │   │   ├── KR_SC001_SH001_261017_001.png
+    │   │   └── KR_SC001_SH002_261017_REF_001.png
+    │   ├── Video
+    │   │   ├── KR_SC001_SH002_261017_001.mp4
+    │   │   └── KR_SC001_SH002_261017_001.safetensors
+    │   └── Audio
+    │       ├── KR_SC001_SH003_261017_001.flac
+    │       └── KR_SC001_SH003_261017_001.json
     └── SC002
         ├── Images
         └── Video
 ```
 
+In this example, the H3 latent sits beside the corresponding video take; the audio `.json` file is its workflow/production metadata sidecar.
+
 ---
 
 ## Compatibility
 
-Production Slate V4.4 retains compatibility support for workflows created with the earlier Production Slate V4 IMAGE 004-C and VIDEO 004-C nodes.
-
-Production Slate has been developed and production-tested with ComfyUI V0.37.x through V0.38.2.
-
-Production Slate was developed and tested using ComfyUI's **Nodes 2** interface and is intended to work with Nodes 2.
-
-The node does not require VideoHelperSuite for its folder browser.
+- **V4.5 testing:** ComfyUI **0.41.3**, using the Nodes 2 interface.
+- Earlier **V4.4.x** releases were field-tested across ComfyUI 0.37.x–0.38.2.
+- Earlier Production Slate IMAGE 004-C and VIDEO 004-C workflows retain the existing migration support. Always retain backups of important workflows when changing versions.
+- The Production Slate browser requires **no VideoHelperSuite** runtime dependency.
+- The new loader has been tested with Production Slate-saved standard, LTX 2.5 AV, and H3 Motion Context latents; compatibility with arbitrary latent files and third-party continuation workflows is **not guaranteed**.
+- Audio playback depends on format support in the user's browser. Source AUDIO pass-through is unmodified; MP3 encoding is lossy.
 
 ---
 
@@ -308,24 +362,17 @@ The experience of using Production Slate throughout a complete production has al
 
 ---
 
-## Roadmap — V4.5 (Under Consideration)
+## Future ideas (not included in V4.5)
 
-We're exploring ways to extend Production Slate's output management to additional types of production assets, while keeping the current **V4.4 IMAGE/VIDEO features stable**. These are **proposals, not confirmed features or a release schedule**.
+Possible later work includes simpler one-click restoration of workflows from audio sidecars, additional production metadata/lineage, and optional support for attaching user-supplied score or metadata files. These are **not current V4.5 features** and have no committed release schedule.
 
-- **[Optional LATENT saving — Issue #2](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/issues/2):** Save compatible latents **alongside the associated image or video**, with matching scene, shot and take filenames. No separate Latents directory. Investigate conventional image latents and specialised audio/video latents before deciding format support.
-- **[Generator-independent audio — Issue #3](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/issues/3):** Explore saving ComfyUI audio as **FLAC, MP3 or WAV**, organised using Production Slate's existing production structure, for standalone cues or audio associated with visual takes.
-- **Workflow recovery:** Preserve reloadable workflow metadata where technically supported, with companion workflow files as a fallback where embedding is not reliable.
-- **Optional companion files:** Explore saving **user-supplied JSON metadata and PDF scores** alongside relevant audio assets, without depending on any particular music model or generator.
-
-Technical feasibility, format compatibility, file naming, migration and UI simplicity will be assessed before any implementation is committed. Please use the linked Issues to share requirements and feedback.
+The completed audio and latent feature requests were developed from community feedback: [Issue #2 — LATENT](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/issues/2) and [Issue #3 — AUDIO](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/issues/3).
 
 ---
 
 ## Version
 
-**Production Slate V4.4**
-
-Initial public release.
+**Production Slate V4.5.0.** For download and publication status, see [GitHub Releases](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases).
 
 ---
 
@@ -345,7 +392,7 @@ See [LICENSE](LICENSE).
 
 ## Trailer and tutorials
 
-Watch the Production Slate V4.4 launch trailer on YouTube:
+Watch the Production Slate V4.4 launch trailer on YouTube (still relevant to the unified saver):
 
 https://youtube.com/shorts/5lPz9jyEo34?feature=share
 

@@ -18,6 +18,7 @@
 // ============================================================
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { openProductionSlateFolderBrowser } from "./production_slate_folder_browser.js";
 
 const productionSlateMigratedNodeIds = new Set();
 
@@ -348,10 +349,73 @@ api.addEventListener("execution_error", (event) => {
 });
 
 
+function migrateProductionSlateAudioOutputSlots(graphData) {
+    // Older saved workflows used VIDEO, IMAGE, save_path[, AUDIO].
+    // Keep those links intact when loading the V4.5 output layout.
+    const links = graphData?.links;
+    const graphLinks = Array.isArray(links)
+        ? links
+        : (links && typeof links === "object" ? Object.values(links) : []);
+
+    for (const nodeInfo of graphData?.nodes ?? []) {
+        if (
+            nodeInfo.type !== "ProductionSlateV4" ||
+            !Array.isArray(nodeInfo.outputs) ||
+            String(nodeInfo.outputs[2]?.name ?? "").toLowerCase() !== "save_path"
+        ) {
+            continue;
+        }
+
+        const oldOutputs = nodeInfo.outputs;
+        const oldAudioFourth =
+            String(oldOutputs[3]?.name ?? "").toLowerCase() === "audio";
+
+        // Avoid touching unfamiliar schemas with additional outputs.
+        if (oldOutputs.length > 3 && !oldAudioFourth) {
+            continue;
+        }
+
+        if (oldAudioFourth) {
+            nodeInfo.outputs = [
+                oldOutputs[0], oldOutputs[1], oldOutputs[3], oldOutputs[2],
+            ];
+        } else {
+            nodeInfo.outputs = [
+                oldOutputs[0],
+                oldOutputs[1],
+                { name: "audio", type: "AUDIO", links: [] },
+                oldOutputs[2],
+            ];
+        }
+
+        for (const link of graphLinks) {
+            if (Array.isArray(link) && String(link[1]) === String(nodeInfo.id)) {
+                if (link[2] === 2) {
+                    link[2] = 3;
+                } else if (oldAudioFourth && link[2] === 3) {
+                    link[2] = 2;
+                }
+            } else if (
+                link &&
+                !Array.isArray(link) &&
+                String(link.origin_id) === String(nodeInfo.id)
+            ) {
+                if (link.origin_slot === 2) {
+                    link.origin_slot = 3;
+                } else if (oldAudioFourth && link.origin_slot === 3) {
+                    link.origin_slot = 2;
+                }
+            }
+        }
+    }
+}
+
 app.registerExtension({
     name: "ProductionSlate.Browse",
 
     beforeConfigureGraph(graphData) {
+        migrateProductionSlateAudioOutputSlots(graphData);
+
         const supportedTypes = new Set([
             "ProductionSlateV4_Build004C_Image",
             "ProductionSlateV4_Build004C_Video",
@@ -392,6 +456,8 @@ app.registerExtension({
             "shot",
             "suffix",
             "description",
+            "audio_format",
+            "latent_format",
         ];
 
         const unifiedRequiredNamedValues = [
@@ -451,7 +517,8 @@ app.registerExtension({
                         name
                     )
                         ? namedValues[name]
-                        : ""
+                        : (name === "audio_format" ? "flac" :
+                           name === "latent_format" ? "Auto Detect" : "")
             );
 
             const previousValues =
@@ -506,7 +573,7 @@ app.registerExtension({
         }
 
         if (isUnified) {
-            node.title = "🎬 Production Slate V4.4";
+            node.title = "🎬 Production Slate V4.5";
         }
 
         node.color = "#352447";
@@ -561,6 +628,13 @@ app.registerExtension({
             (widget) => widget.name === "description"
         );
 
+        const audioFormatWidget = node.widgets?.find(
+            (widget) => widget.name === "audio_format"
+        );
+        const latentFormatWidget = node.widgets?.find(
+            (widget) => widget.name === "latent_format"
+        );
+
         const clearSlate = node.widgets?.find(
             (widget) => widget.name === "clear_slate"
         );
@@ -599,6 +673,13 @@ app.registerExtension({
 
         if (descriptionWidget) {
             descriptionWidget.label = "Slate Notes";
+        }
+
+        if (audioFormatWidget) {
+            audioFormatWidget.label = "Audio Format";
+        }
+        if (latentFormatWidget) {
+            latentFormatWidget.label = "Latent Format";
         }
 
         // --------------------------------------------------------
@@ -1327,30 +1408,37 @@ app.registerExtension({
             browseButton.textContent = "Browse…";
         });
 
+        // V4.5 folder-browser pilot: open the larger modal with the
+        // same backend permissions and the same authoritative widgets.
+        // The previous in-node panel is retained (inactive) until testing passes.
         browseButton.addEventListener("click", () => {
-            const isVisible =
-                browserPanel.style.display !== "none";
-
-            if (isVisible) {
-                browserPanel.style.display = "none";
-                browseButton.textContent = "Browse…";
-                return;
-            }
-
-            currentPath = "";
-
-            navigationHistory.length = 0;
-            updateNavigationButtons();
-
-            browserPanel.style.display = "block";
-            browseButton.textContent = "Close Browse";
-
-
-            if (currentPath === "") {
-                loadDrives();
-            } else {
-                loadDirectory(currentPath);
-            }
+            openProductionSlateFolderBrowser({
+                outputRoot,
+                productionName,
+                onSelectOutput: (selectedPath) => {
+                    outputRoot.value = selectedPath;
+                    if (outputRoot.inputEl) {
+                        outputRoot.inputEl.value = selectedPath;
+                    }
+                    outputRoot.callback?.call(outputRoot, selectedPath);
+                    refreshOutputLocationDisplay();
+                    node.setDirtyCanvas?.(true, true);
+                },
+                onSelectProduction: (parentPath, folderName) => {
+                    outputRoot.value = parentPath;
+                    productionName.value = folderName;
+                    if (outputRoot.inputEl) {
+                        outputRoot.inputEl.value = parentPath;
+                    }
+                    if (productionName.inputEl) {
+                        productionName.inputEl.value = folderName;
+                    }
+                    outputRoot.callback?.call(outputRoot, parentPath);
+                    productionName.callback?.call(productionName, folderName);
+                    refreshOutputLocationDisplay();
+                    node.setDirtyCanvas?.(true, true);
+                },
+            });
         });
 
         const browseWidget = node.addDOMWidget(
@@ -1823,7 +1911,7 @@ app.registerExtension({
         }
 
         const nodeTypeLabel =
-            isUnified ? "V4.4" : (isVideo ? "Video" : "Image");
+            isUnified ? "V4.5" : (isVideo ? "Video" : "Image");
 
         console.log(
             `[ProductionSlate] Browse panel attached to ${nodeTypeLabel}.`
@@ -1859,7 +1947,7 @@ app.registerExtension({
 
         if (isUnified) {
             node.title =
-                "🎬 Production Slate V4.4";
+                "🎬 Production Slate V4.5";
         }
 
         node.color = "#352447";
@@ -1891,6 +1979,13 @@ app.registerExtension({
 
         const descriptionWidget = node.widgets?.find(
             (widget) => widget.name === "description"
+        );
+
+        const audioFormatWidget = node.widgets?.find(
+            (widget) => widget.name === "audio_format"
+        );
+        const latentFormatWidget = node.widgets?.find(
+            (widget) => widget.name === "latent_format"
         );
 
         const clearSlate = node.widgets?.find(
@@ -1925,6 +2020,13 @@ app.registerExtension({
             descriptionWidget.label = "Slate Notes";
         }
 
+        if (audioFormatWidget) {
+            audioFormatWidget.label = "Audio Format";
+        }
+        if (latentFormatWidget) {
+            latentFormatWidget.label = "Latent Format";
+        }
+
         if (clearSlate) {
             clearSlate.hidden = true;
             clearSlate.options = clearSlate.options || {};
@@ -1952,7 +2054,7 @@ app.registerExtension({
         }
 
         const nodeTypeLabel =
-            isUnified ? "V4.4" : (isVideo ? "Video" : "Image");
+            isUnified ? "V4.5" : (isVideo ? "Video" : "Image");
 
         console.log(
             `[ProductionSlate] Loaded ${nodeTypeLabel} workflow node refreshed.`

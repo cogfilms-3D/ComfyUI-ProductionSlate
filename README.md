@@ -2,7 +2,7 @@
 
 **Spend less time finding your film. Spend more time making it.**
 
-![Production Slate promotional artwork](images/production-slate-v4.4-header.png)
+![Production Slate V4.5 promotional artwork](images/production_slate_v4.5_beach_showcase.png)
 
 > **Version guidance:** This README describes **V4.5.0**, officially published on **17 October 2026**. For a stable installation, use the [Production Slate V4.5.0 GitHub release](https://github.com/cogfilms-3D/ComfyUI-ProductionSlate/releases/tag/v4.5.0) rather than an in-progress development branch.
 
